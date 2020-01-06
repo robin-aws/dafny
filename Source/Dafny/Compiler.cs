@@ -1254,6 +1254,7 @@ namespace Microsoft.Dafny {
       Contract.Requires(f != null);
       Contract.Requires(cw != null);
 
+      CheckForExternConstraints(cw.ErrorWriter(), f, f.Formals, new Formal[] { f.Result }, f.Req, f.Ens);
       var w = cw.CreateFunction(IdName(f), f.TypeArgs, f.Formals, f.ResultType, f.tok, f.IsStatic, true, f);
       if (w != null) {
         CompileReturnBody(f.Body, w);
@@ -1264,6 +1265,7 @@ namespace Microsoft.Dafny {
       Contract.Requires(cw != null);
       Contract.Requires(m != null);
 
+      CheckForExternConstraints(cw.ErrorWriter(), m, m.Ins, m.Outs, m.Req, m.Ens);
       var w = cw.CreateMethod(m, true);
       if (w != null) {
         int nonGhostOutsCount = 0;
@@ -3807,6 +3809,47 @@ namespace Microsoft.Dafny {
 
     public virtual bool SupportsInMemoryCompilation { get => true; }
 
+    protected bool CheckForExternConstraints(TextWriter tw, MemberDecl decl, 
+      IList<Formal> ins, IList<Formal> outs,
+      IList<MaybeFreeExpression> Req, IList<MaybeFreeExpression> Ens)
+    {
+      if (Attributes.FindExpressions(decl.Attributes, "extern") == null)
+      {
+        return true;
+      };
+      
+      int prevErrorCount = Reporter.Count(ErrorLevel.Error);
+      
+      if (Req.Any()) 
+      {
+        Error(decl.tok, "Declarations with {{:extern}} cannot have requires clauses", tw);
+      }
+      if (Ens.Any()) 
+      {
+        Error(decl.tok, "Declarations with {{:extern}} cannot have ensures clauses", tw);
+      }
+
+      foreach (var formal in ins) 
+      {
+        CheckForExternCompatibleType(tw, formal.Type, formal.tok);
+      }
+
+      foreach (var formal in outs) 
+      {
+        CheckForExternCompatibleType(tw, formal.Type, formal.tok);
+      }
+
+      return Reporter.Count(ErrorLevel.Error) == prevErrorCount;
+    }
+
+    protected void CheckForExternCompatibleType(TextWriter tw, Type t, Bpl.IToken tok) {
+      if (t.IsRefType)
+      {
+        // Ensure this is a compatible, nullable type
+        
+      }
+    }
+    
     /// <summary>
     /// Compile the target program known as "dafnyProgramName".
     /// "targetProgramText" contains the program text.

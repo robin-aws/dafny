@@ -7,7 +7,6 @@ phases:
       - cd ..
       - npm install bignumber.js
       - pip install lit OutputCheck pyyaml
-      - find . -type f
       # Get Boogie
       - git clone https://github.com/boogie-org/boogie.git
       - nuget restore boogie/Source/Boogie.sln

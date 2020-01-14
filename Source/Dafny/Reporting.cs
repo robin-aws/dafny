@@ -57,7 +57,7 @@ namespace Microsoft.Dafny {
       if (tok is IncludeToken) {
         IncludeToken includeToken = (IncludeToken) tok;
         Include include = includeToken.Include;
-        if (!include.ErrorReported) {
+        if (include != null && !include.ErrorReported) {
           Message(source, ErrorLevel.Error, include.tok, "the included file " + tok.filename + " contains error(s)");
           include.ErrorReported = true;
         }

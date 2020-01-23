@@ -308,8 +308,8 @@ namespace Microsoft.Dafny {
       TupleTypeDecl tt;
       if (!tupleTypeDecls.TryGetValue(dims, out tt)) {
         Contract.Assume(allowCreationOfNewType);  // the parser should ensure that all needed tuple types exist by the time of resolution
-        if (dims == 2) {
-          // tuple#2 is already defined in DafnyRuntime.cs
+        if (dims == 0 || dims == 2) {
+          // tuples#0 and tuple#2 are already defined in the Dafny runtime for each of the target languages
           tt = new TupleTypeDecl(dims, SystemModule, DontCompile());
         } else {
           tt = new TupleTypeDecl(dims, SystemModule, null);

@@ -1465,6 +1465,42 @@ namespace Dafny
 
 namespace @_System
 {
+  public class Tuple0 {
+    public Tuple0() {
+    }
+    public override bool Equals(object other) {
+      var oth = other as _System.Tuple0;
+      return oth != null;
+    }
+    public override int GetHashCode() {
+      ulong hash = 5381;
+      hash = ((hash << 5) + hash) + 0;
+      return (int) hash;
+    }
+    public override string ToString() {
+      return "()";
+    }
+    static Tuple0 theDefault;
+    public static Tuple0 Default {
+      get {
+        if (theDefault == null) {
+          theDefault = new _System.Tuple0();
+        }
+        return theDefault;
+      }
+    }
+    public static Tuple0 _DafnyDefaultValue() { return Default; }
+    public static Tuple0 create() {
+      return new Tuple0();
+    }
+    public bool is____hMake0 { get { return true; } }
+    public static System.Collections.Generic.IEnumerable<Tuple0> AllSingletonConstructors {
+      get {
+        yield return Tuple0.create();
+      }
+    }
+  }
+
   public class Tuple2<T0,T1> {
     public readonly T0 _0;
     public readonly T1 _1;

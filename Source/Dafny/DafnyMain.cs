@@ -8,8 +8,6 @@ using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using Bpl = Microsoft.Boogie;
-using System.Reflection;
-using DafnyAssembly;
 using Mono.Cecil;
 
 namespace Microsoft.Dafny {

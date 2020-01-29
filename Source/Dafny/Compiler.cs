@@ -3802,29 +3802,24 @@ namespace Microsoft.Dafny {
       IList<Formal> ins, IList<Formal> outs,
       IList<MaybeFreeExpression> Req, IList<MaybeFreeExpression> Ens)
     {
-      if (Attributes.FindExpressions(decl.Attributes, "extern") == null)
-      {
+      if (Attributes.FindExpressions(decl.Attributes, "extern") == null) {
         return true;
       };
       
       int prevErrorCount = Reporter.Count(ErrorLevel.Error);
       
-      if (Req.Any()) 
-      {
+      if (Req.Any()) {
         Error(decl.tok, "Declarations with {{:extern}} cannot have requires clauses", tw);
       }
-      if (Ens.Any()) 
-      {
+      if (Ens.Any()) {
         Error(decl.tok, "Declarations with {{:extern}} cannot have ensures clauses", tw);
       }
 
-      foreach (var formal in ins) 
-      {
+      foreach (var formal in ins) {
         CheckForExternCompatibleType(tw, formal.Type, formal.tok);
       }
 
-      foreach (var formal in outs) 
-      {
+      foreach (var formal in outs) {
         CheckForExternCompatibleType(tw, formal.Type, formal.tok);
       }
 
@@ -3832,10 +3827,16 @@ namespace Microsoft.Dafny {
     }
 
     protected void CheckForExternCompatibleType(TextWriter tw, Type t, Bpl.IToken tok) {
-      if (t.IsRefType)
-      {
-        // Ensure this is a compatible, nullable type
-        
+      if (t.IsNonNullRefType) {
+        Error(tok, "Parameter with reference types in {{:extern}} declarations must use nullable types", tw);
+      }
+
+      if (t.AsSeqType != null) {
+        CheckForExternCompatibleType(tw, t.AsSeqType.Arg, tok);
+      }
+      if (t.IsMapType) {
+        CheckForExternCompatibleType(tw, t.AsMapType.Domain, tok);
+        CheckForExternCompatibleType(tw, t.AsMapType.Range, tok);
       }
     }
     

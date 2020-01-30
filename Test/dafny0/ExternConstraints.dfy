@@ -34,4 +34,58 @@ module {:extern "Mod"} Mod1
 
     }
   }
+  
+  datatype Result<T> = Success(value: T) | Failure(error: string) {
+        predicate method IsFailure() {
+            Failure?
+        }
+        function method PropagateFailure<U>(): Result<U> requires Failure? {
+            Failure(this.error)
+        }
+        function method Extract(): T requires Success? {
+            value
+        }
+    }
+
+  function method RequireWithMessage(b: bool, message: string): (r: Result<()>) 
+      ensures r.Success? ==> b 
+  {
+    if b then Success(()) else Failure(message)
+  }
+
+  trait MyTrait {
+    method Invert(x: real) returns (y: Result<real>) requires x != 0.0 ensures y.Success? ==> x * y.value == 1.0 decreases *
+  }
+  
+  class MyTraitAdaptor extends MyTrait {
+
+    const wrapped: MyExternTrait
+
+    constructor(wrapped: MyExternTrait) {
+      this.wrapped := wrapped;
+    }
+
+    method Invert(x: real) returns (y: Result<real>) requires x != 0.0 ensures y.Success? ==> x * y.value == 1.0 decreases * {
+      y := wrapped.Invert(x);
+      var _ :- RequireWithMessage(y.Success? ==> x * y.value == 1.0, "external implementation failed"); // InternalError
+    }
+  }
+  
+  trait {:extern} MyExternTrait {
+    method {:extern} Invert(x: real) returns (y: Result<real>) decreases *
+  }
+
+  class MyExternTraitAdaptor extends MyExternTrait {
+
+    const wrapped: MyTrait
+
+    constructor(wrapped: MyTrait) {
+      this.wrapped := wrapped;
+    }
+
+    method {:extern} Invert(x: real) returns (y: Result<real>) decreases * {
+      var _ :- RequireWithMessage(x != 0.0, "x cannot be zero"); // IllegalArgumentError
+      y := wrapped.Invert(x);
+    }
+  }
 }

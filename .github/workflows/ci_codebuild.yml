@@ -1,0 +1,14 @@
+name: Build and Test Dafny 
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: aws-actions/aws-codebuild-run-project@v1
+      with:
+        project-name: Dafny

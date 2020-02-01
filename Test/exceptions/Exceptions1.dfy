@@ -2,6 +2,7 @@
 // RUN: %diff "%s.expect" "%t"
 include "./NatOutcome.dfy"
 include "./VoidOutcome.dfy"
+include "./GenericOutcomeDt.dfy"
 
 method Switch(b: bool, v: nat) returns (res: NatOutcome) {
     if b {
@@ -30,13 +31,31 @@ method FailIf(b: bool) returns (res: VoidOutcome) {
 }
 
 method TestControlFlowCase_Void(switch1: bool, switch2: bool, switch3: bool) returns (res: VoidOutcome) {
-    :- FailIf(switch1);
+     :- FailIf(switch1);
+     print "_";
+     :- FailIf(switch2);
+     print "_";
+     :- FailIf(switch3);
+     print "_";
+     res := MakeVoidSuccess();
+ }
+
+method FailIfGeneric(b: bool) returns (res: GenericOutcome<()>) {
+    if b {
+        res := GenericSuccess(());
+    } else {
+        res := GenericFailure("void bad luck");
+    }
+}
+
+method TestControlFlowCase_GenericOfUnit(switch1: bool, switch2: bool, switch3: bool) returns (res: GenericOutcome<()>) {
+    :- FailIfGeneric(switch1);
     print "_";
-    :- FailIf(switch2);
+    :- FailIfGeneric(switch2);
     print "_";
-    :- FailIf(switch3);
+    :- FailIfGeneric(switch3);
     print "_";
-    res := MakeVoidSuccess();
+    res := GenericSuccess(());
 }
 
 method TestControlFlow() {

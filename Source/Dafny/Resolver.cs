@@ -10190,9 +10190,10 @@ namespace Microsoft.Dafny
       this.reporter = new ErrorReporterSink();
 
       NonProxyType ignoredNptype = null;
+      MemberDecl extractMember = ResolveMember(tok, tp, "Extract", out ignoredNptype);
       if (ResolveMember(tok, tp, "IsFailure", out ignoredNptype) == null ||
           ResolveMember(tok, tp, "PropagateFailure", out ignoredNptype) == null ||
-          (ResolveMember(tok, tp, "Extract", out ignoredNptype) != null) != expectExtract
+          (extractMember != null) != expectExtract
       ) {
         // more details regarding which methods are missing have already been reported by regular resolution
         origReporter.Error(MessageSource.Resolver, tok,

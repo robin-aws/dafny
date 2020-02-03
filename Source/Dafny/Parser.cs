@@ -3059,6 +3059,7 @@ List<Expression> decreases, ref Attributes decAttrs, ref Attributes modAttrs, st
 		Attributes attrs = null;
 		IToken suchThatAssume = null;
 		Expression suchThat = null;
+		IToken exceptionAssume = null;
 		Expression exceptionExpr = null;
 		
 		if (StartOf(22)) {
@@ -3098,6 +3099,10 @@ List<Expression> decreases, ref Attributes decAttrs, ref Attributes modAttrs, st
 				} else if (la.kind == 115) {
 					Get();
 					x = t; 
+					if (la.kind == _assume) {
+						Expect(36);
+						exceptionAssume = t; 
+					}
 					Expression(out exceptionExpr, false, false);
 				} else SynErr(217);
 				Expect(34);
@@ -3109,6 +3114,10 @@ List<Expression> decreases, ref Attributes decAttrs, ref Attributes modAttrs, st
 		} else if (la.kind == 115) {
 			Get();
 			x = t; 
+			if (la.kind == _assume) {
+				Expect(36);
+				exceptionAssume = t; 
+			}
 			Expression(out exceptionExpr, false, false);
 			Expect(34);
 			endTok = t; 
@@ -3120,7 +3129,7 @@ List<Expression> decreases, ref Attributes decAttrs, ref Attributes modAttrs, st
 		   SemErr(x, "':-' assignments can only have one LHS");
 		   lhss = new List<Expression>() { lhss[0] };
 		 }
-		 s = new AssignOrReturnStmt(x, endTok, lhss, exceptionExpr);
+		 s = new AssignOrReturnStmt(x, endTok, lhss, exceptionExpr, exceptionAssume);
 		} else {
 		 if (lhss.Count == 0 && rhss.Count == 0) {
 		   s = new BlockStmt(x, endTok, new List<Statement>()); // error, give empty statement
@@ -3139,6 +3148,7 @@ List<Expression> decreases, ref Attributes decAttrs, ref Attributes modAttrs, st
 		List<AssignmentRhs> rhss = new List<AssignmentRhs>();
 		IToken suchThatAssume = null;
 		Expression suchThat = null;
+		IToken exceptionAssume = null;
 		Expression exceptionExpr = null;
 		Attributes attrs = null;
 		IToken endTok;
@@ -3189,6 +3199,10 @@ List<Expression> decreases, ref Attributes decAttrs, ref Attributes modAttrs, st
 				} else {
 					Get();
 					assignTok = t; 
+					if (la.kind == _assume) {
+						Expect(36);
+						exceptionAssume = t; 
+					}
 					Expression(out exceptionExpr, false, false);
 				}
 			}
@@ -3208,7 +3222,7 @@ List<Expression> decreases, ref Attributes decAttrs, ref Attributes modAttrs, st
 			     SemErr(assignTok, "':-' assignments can only have one LHS");
 			     lhsExprs = new List<Expression>() { lhsExprs[0] };
 			   }
-			   update = new AssignOrReturnStmt(assignTok, endTok, lhsExprs, exceptionExpr);
+			   update = new AssignOrReturnStmt(assignTok, endTok, lhsExprs, exceptionExpr, exceptionAssume);
 			} else if (rhss.Count == 0) {
 			 update = null;
 			} else {

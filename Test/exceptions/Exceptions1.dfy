@@ -70,7 +70,7 @@ method TestStatementParsing(b: bool, n: nat, o1: NatOutcome, o2: NatOutcome) ret
     var use_expr1: nat := expr1;
 
     var stmt1: nat :- MakeNatSuccess(n);
-    stmt1 :- MakeNatFailure("sorry, bad luck");
+    stmt1 :- assume MakeNatFailure("sorry, bad luck");
     var use_stmt1: nat := stmt1;
 
     var expr2 :- (var x := if b then o1 else o2; x);
@@ -83,6 +83,15 @@ method TestStatementParsing(b: bool, n: nat, o1: NatOutcome, o2: NatOutcome) ret
     return o1;
 }
 
+method TestAssignOrHalt() {
+    var stmt1: nat :- assume MakeNatFailure("Kaboom!");
+}
+
+method TestAssume() {
+    assume false;
+}
+
 method Main() {
     TestControlFlow();
+    TestAssume();
 }

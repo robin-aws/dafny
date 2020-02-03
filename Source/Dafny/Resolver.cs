@@ -6069,6 +6069,7 @@ namespace Microsoft.Dafny
           return CheckTailRecursive(s.Update, enclosingMethod, ref tailCall, reportErrors);
         }
       } else if (stmt is LetStmt) {
+      } else if (stmt is AssumeStmt) {
       } else {
         Contract.Assert(false);  // unexpected statement type
       }
@@ -6776,13 +6777,16 @@ namespace Microsoft.Dafny
         Contract.Requires(stmt != null);
         Contract.Assume(!codeContext.IsGhost || mustBeErasable);  // (this is really a precondition) codeContext.IsGhost ==> mustBeErasable
 
-        if (stmt is PredicateStmt) {
+        if (stmt is AssertStmt) {
           stmt.IsGhost = true;
-          var assertStmt = stmt as AssertStmt;
-          if (assertStmt != null && assertStmt.Proof != null) {
+          var assertStmt = (AssertStmt) stmt;
+          if (assertStmt.Proof != null) {
             Visit(assertStmt.Proof, true);
           }
-
+          
+        } else if (stmt is AssumeStmt) {
+          stmt.IsGhost = false;
+        
         } else if (stmt is PrintStmt) {
           var s = (PrintStmt)stmt;
           if (mustBeErasable) {
@@ -10161,7 +10165,9 @@ namespace Microsoft.Dafny
         new IfStmt(s.Tok, s.Tok, false, VarDotMethod(s.Tok, temp, "IsFailure"),
           // THEN: { return temp.PropagateFailure(); }
           new BlockStmt(s.Tok, s.Tok, new List<Statement>() {
-            new ReturnStmt(s.Tok, s.Tok, new List<AssignmentRhs>() { new ExprRhs(VarDotMethod(s.Tok, temp, "PropagateFailure"))}),
+            s.AssumeToken != null 
+                ? (Statement)new AssumeStmt(s.Tok, s.Tok, new LiteralExpr(s.Tok, false), null)
+                : new ReturnStmt(s.Tok, s.Tok, new List<AssignmentRhs>() { new ExprRhs(VarDotMethod(s.Tok, temp, "PropagateFailure"))}),
           }),
           // ELSE: no else block
           null

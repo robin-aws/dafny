@@ -1022,7 +1022,7 @@ namespace Microsoft.Dafny {
           if (f.IsGhost) {
             // emit nothing, but check for assumes
             if (f is ConstantField cf && cf.Rhs != null) {
-              var v = new CheckHasNoAssumes_Visitor(this, errorWr);
+              var v = new CheckCompilable_Visitor(this, errorWr);
               v.Visit(cf.Rhs);
             }
           } else if (!DafnyOptions.O.DisallowExterns && Attributes.Contains(f.Attributes, "extern")) {
@@ -1103,7 +1103,7 @@ namespace Microsoft.Dafny {
             if (f.Body == null) {
               Contract.Assert(c is TraitDecl && !f.IsStatic);
             } else {
-              var v = new CheckHasNoAssumes_Visitor(this, errorWr);
+              var v = new CheckCompilable_Visitor(this, errorWr);
               v.Visit(f.Body);
             }
           } else if (c is TraitDecl && !f.IsStatic) {
@@ -1127,7 +1127,7 @@ namespace Microsoft.Dafny {
             if (m.Body == null) {
               Contract.Assert(c is TraitDecl && !m.IsStatic);
             } else {
-              var v = new CheckHasNoAssumes_Visitor(this, errorWr);
+              var v = new CheckCompilable_Visitor(this, errorWr);
               v.Visit(m.Body);
             }
           } else if (c is TraitDecl && !m.IsStatic) {
@@ -1727,24 +1727,17 @@ namespace Microsoft.Dafny {
 
     // ----- Stmt ---------------------------------------------------------------------------------
 
-    public class CheckHasNoAssumes_Visitor : BottomUpVisitor
+    public class CheckCompilable_Visitor : BottomUpVisitor
     {
       readonly Compiler compiler;
       TextWriter wr;
-      public CheckHasNoAssumes_Visitor(Compiler c, TextWriter wr) {
+      public CheckCompilable_Visitor(Compiler c, TextWriter wr) {
         Contract.Requires(c != null);
         compiler = c;
         this.wr = wr;
       }
       protected override void VisitOneStmt(Statement stmt) {
-        if (stmt is AssumeStmt) {
-          compiler.Error(stmt.Tok, "an assume statement cannot be compiled", wr);
-        } else if (stmt is AssignSuchThatStmt) {
-          var s = (AssignSuchThatStmt)stmt;
-          if (s.AssumeToken != null) {
-            compiler.Error(stmt.Tok, "an assume statement cannot be compiled", wr);
-          }
-        } else if (stmt is ForallStmt) {
+        if (stmt is ForallStmt) {
           var s = (ForallStmt)stmt;
           if (s.Body == null) {
             compiler.Error(stmt.Tok, "a forall statement without a body cannot be compiled", wr);
@@ -1763,7 +1756,7 @@ namespace Microsoft.Dafny {
       Contract.Requires(wr != null);
 
       if (stmt.IsGhost) {
-        var v = new CheckHasNoAssumes_Visitor(this, wr);
+        var v = new CheckCompilable_Visitor(this, wr);
         v.Visit(stmt);
         wr.WriteLine("{ }");
         return;
@@ -1867,6 +1860,17 @@ namespace Microsoft.Dafny {
         // TODO there's potential here to use target-language specific features such as exceptions
         // to make it more target-language idiomatic and improve performance
         TrStmtList(s.ResolvedStatements, wr);
+
+      } else if (stmt is AssumeStmt) {
+        var s = (AssumeStmt)stmt;
+        // TODO there's potential here to use target-language specific features such as exceptions
+        // to make it more target-language idiomatic and improve performance
+        TargetWriter guardWriter;
+        TargetWriter bodyWriter = EmitIf(out guardWriter, false, wr);
+        var negated = new UnaryOpExpr(s.Tok, UnaryOpExpr.Opcode.Not, s.Expr);
+        negated.Type = Type.Bool;
+        TrExpr(negated, guardWriter, false);
+        EmitAbsurd("assumption failure", bodyWriter);
 
       } else if (stmt is CallStmt) {
         var s = (CallStmt)stmt;

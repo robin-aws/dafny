@@ -5229,39 +5229,13 @@ namespace Microsoft.Dafny {
     }
     static char[] specialChars = new char[] { '\'', '_', '?', '\\', '#' };
     public static string CompilerizeName(string nm) {
-      if ('0' <= nm[0] && nm[0] <= '9') {
-        // the identifier is one that consists of just digits
-        return "_" + nm;
-      }
-      string name = null;
-      int i = 0;
-      while (true) {
-        int j = nm.IndexOfAny(specialChars, i);
-        if (j == -1) {
-          if (i == 0) {
-            return nm;  // this is the common case
-          } else {
-            return name + nm.Substring(i);
-          }
-        } else {
-          string nxt = nm.Substring(i, j - i);
-          name = name == null ? nxt : name + nxt;
-          switch (nm[j]) {
-            case '\'': name += "_k"; break;
-            case '_': name += "__"; break;
-            case '?': name += "_q"; break;
-            case '\\': name += "_b"; break;
-            case '#': name += "_h"; break;
-            default:
-              Contract.Assume(false);  // unexpected character
-              break;
-          }
-          i = j + 1;
-          if (i == nm.Length) {
-            return name;
-          }
-        }
-      }
+      string name = nm;
+      name = name.Replace("'", "_k");
+      name = name.Replace("_", "__");
+      name = name.Replace("?", "_q");
+      name = name.Replace("\\", "_b");
+      name = name.Replace("#", "_h");
+      return "_dafny_internal_" + name;
     }
     protected string compileName;
     public virtual string CompileName {

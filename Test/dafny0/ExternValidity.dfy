@@ -30,16 +30,15 @@ module ExternalInvariants {
 
     method Update(newX: int) 
       requires Valid()
-      requires 
-        var validatables: set<Validatable> := set y: Validatable | true;
-        forall v :: v in validatables ==> v.Valid()
+      requires forall v: Validatable :: v.Valid()
       modifies this
       ensures Valid()
     {
       this.x := newX;
-      ghost var validatables: set<Validatable> := set y: Validatable | true;
       this.y := 2*x;
-      assert forall v :: v in validatables ==> v.Valid();
+
+      assert forall v: Validatable :: v.Valid();
     }
   }
 }
+

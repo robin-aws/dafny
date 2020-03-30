@@ -5244,7 +5244,8 @@ namespace Microsoft.Dafny {
       name = name.Replace("?", "_q");
       name = name.Replace("\\", "_b");
       name = name.Replace("#", "_h");
-      return "_dafny_internal_" + name;
+//      return "_dafny_internal_" + name;
+      return name;
     }
     protected string compileName;
     public virtual string CompileName {

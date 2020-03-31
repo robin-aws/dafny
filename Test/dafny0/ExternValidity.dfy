@@ -63,7 +63,12 @@ module ExternalInvariants {
     requires Validatable.AllValid(set v: Validatable | true)
     ensures Validatable.AllValid(set v: Validatable | true)
   {
-    res := new AsExternalNotAtomic.NotValid();
+    var internal := new NotAtomic(73);
+    internal.y := 0;
+    assert internal.Valid();
+    var result := new AsExternalNotAtomic(internal);
+    assert result.Valid();
+    res := result;
   }
 
   class AsExternalNotAtomic extends ExternalNotAtomic, Validatable {
@@ -77,8 +82,6 @@ module ExternalInvariants {
     constructor(wrapped: NotAtomic) ensures Valid() {
       this.wrapped := wrapped;
       this.Repr := {this, wrapped} + wrapped.Repr;
-    }
-    constructor NotValid() {
     }
     method Update(x: int) 
       requires Validatable.AllValid(set v: Validatable | true)
@@ -113,6 +116,12 @@ module ExternalInvariants {
       a := b;
       b := tmp;
     }
+  }
+
+  method Main() {
+    assert false;
+    // var valid := MakeExternalNotAtomic();
+    // var notValid := MakeExternalNotAtomic_NotValid();
   }
 }
 

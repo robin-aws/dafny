@@ -6,10 +6,23 @@ module ExternalInvariants {
     predicate Valid() 
       reads this, Repr 
       ensures Valid() ==> this in Repr
-    static predicate AllValid(vs: set<Validatable>) {
-      && (forall v :: v in vs ==> v.Valid())
-      && (forall v, v' :: (v in vs && v' in vs && v != v') ==> v.Repr !! v'.Repr)
-    }
+  }
+
+  // This is the "external invariant". It must hold as a precondition and postcondition for
+  // every method that crosses the Dafny/external boundary, either incoming or outgoing.
+  // It assumes that the Dafny heap cannot be changed in any other way.
+  // I have to pass in the set of object implementing Validatable since I can't pass in
+  // "the Dafny heap".
+  predicate AllValid(vs: set<Validatable>) reads vs, UnionAll(set v | v in vs :: v.Repr) {
+    && (forall v :: v in vs ==> v.Valid()) // Insufficient reads clause, probably need a lemma here
+    && (forall v, v' :: (v in vs && v' in vs && v != v') ==> v.Repr !! v'.Repr)
+  }
+
+  function UnionAll<T>(sets: set<set<T>>): set<T> {
+    if first :| first in sets then
+      first + UnionAll(sets - {first})
+    else
+      {}
   }
 
   class NotAtomic extends Validatable {
@@ -34,94 +47,76 @@ module ExternalInvariants {
     }
 
     method Update(x: int) 
-      requires Validatable.AllValid(set v: Validatable | true)
-      modifies this
-      ensures Validatable.AllValid(set v: Validatable | true)
+      requires AllValid(set v: Validatable | true)
+      requires Valid() // Should follow automatically since this extends Validatable but ¯\_(ツ)_/¯
+      modifies Repr
+      ensures AllValid(set v: Validatable | true)
     {
-      assert this in set v: Validatable | v.Valid();
       this.x := x;
+      // This fails because `this` is not `Valid()` at this point. Yay!
+      // SomeOtherExternalMethod();
       this.y := 2*x;
+      SomeOtherExternalMethod();
     }
   }
 
   trait {:extern} ExternalNotAtomic {
     method Update(x: int) 
-      requires Validatable.AllValid(set v: Validatable | true)
+      requires AllValid(set v: Validatable | true)
       modifies this
-      ensures Validatable.AllValid(set v: Validatable | true)
+      ensures AllValid(set v: Validatable | true)
   }
 
-  method {:extern} MakeExternalNotAtomic() returns (res: ExternalNotAtomic)
-    requires Validatable.AllValid(set v: Validatable | true)
-    ensures Validatable.AllValid(set v: Validatable | true)
+  method MakeExternalNotAtomic() returns (res: Validatable)
+    requires AllValid(set v: Validatable | true)
+    ensures AllValid(set v: Validatable | true)
   {
     var internal := new NotAtomic(73);
     res := new AsExternalNotAtomic(internal);
+    // Postcondition doesn't hold. I probably need to assert that the constructors
+    // don't instantiate any new Validatables. 
   }
 
-  method {:extern} MakeExternalNotAtomic_NotValid() returns (res: ExternalNotAtomic)
-    requires Validatable.AllValid(set v: Validatable | true)
-    ensures Validatable.AllValid(set v: Validatable | true)
-  {
-    var internal := new NotAtomic(73);
-    internal.y := 0;
-    assert internal.Valid();
-    var result := new AsExternalNotAtomic(internal);
-    assert result.Valid();
-    res := result;
-  }
-
-  class AsExternalNotAtomic extends ExternalNotAtomic, Validatable {
+  class AsExternalNotAtomic extends Validatable {
     const wrapped: NotAtomic
     predicate Valid() 
       reads this, Repr 
       ensures Valid() ==> this in Repr
     {
-      this in Repr && wrapped.Valid()
+      && this in Repr
+      && wrapped in Repr
+      && wrapped.Repr <= Repr
+      && this !in wrapped.Repr
+      && wrapped.Valid()
     }
-    constructor(wrapped: NotAtomic) ensures Valid() {
+    constructor(wrapped: NotAtomic) 
+      requires wrapped.Valid() 
+      ensures Valid() 
+    {
       this.wrapped := wrapped;
       this.Repr := {this, wrapped} + wrapped.Repr;
     }
     method Update(x: int) 
-      requires Validatable.AllValid(set v: Validatable | true)
-      modifies this
-      ensures Validatable.AllValid(set v: Validatable | true)
+      requires AllValid(set v: Validatable | true)
+      requires Valid()
+      modifies Repr
+      ensures AllValid(set v: Validatable | true)
     {
       wrapped.Update(x);
     }
   }
 
-  class Rational extends Validatable {
-
-    var a: int
-    var b: int
-
-    predicate Valid() 
-      reads this, Repr 
-      ensures Valid() ==> this in Repr
-    {
-      && 0 <= a
-      && 0 < b
-      && this in Repr
-    }
-
-    method Invert() 
-      requires Valid()
-      requires a != 0
-      modifies this
-      ensures Valid()
-    {
-      var tmp := a;
-      a := b;
-      b := tmp;
-    }
+  method SomeOtherExternalMethod() 
+    requires AllValid(set v: Validatable | true)
+    ensures AllValid(set v: Validatable | true)
+  {
+    // Do some external stuff
   }
 
   method Main() {
-    assert false;
-    // var valid := MakeExternalNotAtomic();
-    // var notValid := MakeExternalNotAtomic_NotValid();
+    // Precondition doesn't hold. How do I convince Dafny that no instances of ANY
+    // reference types exist yet?
+    var valid := MakeExternalNotAtomic();
   }
 }
 

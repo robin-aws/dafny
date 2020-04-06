@@ -11,20 +11,17 @@ module ExternalInvariants {
   // This is the "external invariant". It must hold as a precondition and postcondition for
   // every method that crosses the Dafny/external boundary, either incoming or outgoing.
   // It assumes that the Dafny heap cannot be changed in any other way.
-  // I have to pass in the set of object implementing Validatable since I can't pass in
+  // I have to pass in the set of objects implementing Validatable since I can't pass in
   // "the Dafny heap".
   predicate AllValid(vs: set<Validatable>) reads vs, UnionAll(set v | v in vs :: v.Repr) {
-    && (forall v :: v in vs ==> v.Valid()) // Insufficient reads clause, probably need a lemma here
+    && (forall v :: v in vs ==> v.Valid())
     && (forall v, v' :: (v in vs && v' in vs && v != v') ==> v.Repr !! v'.Repr)
   }
 
   function UnionAll<T>(sets: set<set<T>>): set<T> {
-    if first :| first in sets then
-      first + UnionAll(sets - {first})
-    else
-      {}
+    set o,s | s in sets && o in s :: o
   }
-
+ 
   class NotAtomic extends Validatable {
 
     var x: int
@@ -94,7 +91,7 @@ module ExternalInvariants {
       ensures Valid() 
     {
       this.wrapped := wrapped;
-      this.Repr := {this, wrapped} + wrapped.Repr;
+      this.Repr := {this} + wrapped.Repr;
     }
     method Update(x: int) 
       requires AllValid(set v: Validatable | true)

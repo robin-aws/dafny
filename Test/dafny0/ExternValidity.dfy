@@ -8,6 +8,13 @@ module ExternalInvariants {
       ensures Valid() ==> this in Repr
   }
 
+  trait ExternallyValidatable {
+    ghost var Repr: set<object>
+    predicate Valid() 
+      reads this, Repr 
+      ensures Valid() ==> this in Repr
+  }
+  
   // This is the "external invariant". It must hold as a precondition and postcondition for
   // every method that crosses the Dafny/external boundary, either incoming or outgoing.
   // It assumes that the Dafny heap cannot be changed in any other way.
@@ -27,7 +34,10 @@ module ExternalInvariants {
     var x: int
     var y: int
 
-    constructor(x: int) ensures Valid() {
+    constructor(x: int) 
+      ensures Valid() 
+      ensures forall o: Validatable :: allocated(o) && fresh(o) ==> o.Valid()
+    {
       this.x := x;
       this.y := 2*x;
       this.Repr := {this};
@@ -65,8 +75,7 @@ module ExternalInvariants {
   }
 
   method MakeExternalNotAtomic() returns (res: Validatable)
-    requires AllValid(set v: Validatable | true)
-    ensures AllValid(set v: Validatable | true)
+    ensures forall o: Validatable :: allocated(o) && fresh(o) ==> o.Valid()
   {
     var internal := new NotAtomic(73);
     res := new AsExternalNotAtomic(internal);
@@ -88,6 +97,7 @@ module ExternalInvariants {
     }
     constructor(wrapped: NotAtomic) 
       requires wrapped.Valid() 
+      ensures forall o: Validatable :: allocated(o) && fresh(o) ==> o.Valid()
       ensures Valid() 
     {
       this.wrapped := wrapped;
@@ -110,7 +120,7 @@ module ExternalInvariants {
     // Do some external stuff
   }
 
-  method Main() {
+  method {:main} MyMain() requires AllValid(set v: Validatable | true) {
     // Precondition doesn't hold. How do I convince Dafny that no instances of ANY
     // reference types exist yet?
     var valid := MakeExternalNotAtomic();

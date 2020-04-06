@@ -28,7 +28,15 @@ module ExternalInvariants {
   function UnionAll<T>(sets: set<set<T>>): set<T> {
     set o,s | s in sets && o in s :: o
   }
- 
+
+  twostate lemma AllValidLemma() 
+    requires AllValid(old(set v: Validatable | true))
+    requires forall o: Validatable :: allocated(o) && fresh(o) ==> o.Valid()
+    ensures AllValid(set v: Validatable | true)
+  {
+
+  }
+
   class NotAtomic extends Validatable {
 
     var x: int
@@ -120,10 +128,14 @@ module ExternalInvariants {
     // Do some external stuff
   }
 
-  method {:main} MyMain() requires AllValid(set v: Validatable | true) {
+  method {:main} MyMain() 
+    requires AllValid(set v: Validatable | true) 
+    ensures AllValid(set v: Validatable | true) 
+  {
     // Precondition doesn't hold. How do I convince Dafny that no instances of ANY
     // reference types exist yet?
     var valid := MakeExternalNotAtomic();
+    AllValidLemma();
   }
 }
 

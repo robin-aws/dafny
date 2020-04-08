@@ -2,39 +2,32 @@
 module ExternalInvariants {
 
   trait Validatable {
-    ghost var Repr: set<object>
+    ghost const Repr: set<Validatable>
     predicate Valid() 
       reads this, Repr 
       ensures Valid() ==> this in Repr
+      ensures Valid() ==> forall v :: v in Repr ==> v.Repr <= Repr
+      ensures Valid() ==> forall v :: v in Repr && v != this ==> this !in v.Repr
+    predicate P() {
+      true
+    }
+    twostate lemma IndependentValidity()
+      requires old(Valid())
+      requires unchanged(this)
+      requires forall v :: v in Repr && v != this ==> v.Valid()
+      ensures Valid()
   }
 
-  trait ExternallyValidatable {
-    ghost var Repr: set<object>
-    predicate Valid() 
-      reads this, Repr 
-      ensures Valid() ==> this in Repr
-  }
-  
   // This is the "external invariant". It must hold as a precondition and postcondition for
   // every method that crosses the Dafny/external boundary, either incoming or outgoing.
   // It assumes that the Dafny heap cannot be changed in any other way.
   // I have to pass in the set of objects implementing Validatable since I can't pass in
   // "the Dafny heap".
-  predicate AllValid(vs: set<Validatable>) reads vs, UnionAll(set v | v in vs :: v.Repr) {
-    && (forall v :: v in vs ==> v.Valid())
-    && (forall v, v' :: (v in vs && v' in vs && v != v') ==> v.Repr !! v'.Repr)
-  }
-
-  function UnionAll<T>(sets: set<set<T>>): set<T> {
-    set o,s | s in sets && o in s :: o
-  }
-
-  twostate lemma AllValidLemma() 
-    requires AllValid(old(set v: Validatable | true))
-    requires forall o: Validatable :: allocated(o) && fresh(o) ==> o.Valid()
-    ensures AllValid(set v: Validatable | true)
+  predicate AllValid(vs: set<Validatable>) 
+    reads vs
+    reads set v, o | v in vs && o in v.Repr :: o
   {
-
+    forall v :: v in vs ==> v.Valid()
   }
 
   class NotAtomic extends Validatable {
@@ -44,51 +37,79 @@ module ExternalInvariants {
 
     constructor(x: int) 
       ensures Valid() 
-      ensures forall o: Validatable :: allocated(o) && fresh(o) ==> o.Valid()
+      ensures forall o: Validatable :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
     {
       this.x := x;
       this.y := 2*x;
       this.Repr := {this};
     }
-    constructor NotValid() {
-    }
     
     predicate Valid() 
       reads this, Repr 
       ensures Valid() ==> this in Repr
+      ensures Valid() ==> forall v :: v in Repr ==> v.Repr <= Repr
+      ensures Valid() ==> forall v :: v in Repr && v != this ==> this !in v.Repr
     {
       && y == 2*x
-      && this in Repr
+      && Repr == {this}
+    }
+    twostate lemma IndependentValidity()
+      requires old(Valid())
+      requires unchanged(this)
+      requires forall v :: v in Repr && v != this ==> v.Valid()
+      ensures Valid()
+    {
     }
 
     method Update(x: int) 
-      requires AllValid(set v: Validatable | true)
+      requires AllValid(set v: Validatable | allocated(v) && v.P())
       requires Valid() // Should follow automatically since this extends Validatable but ¯\_(ツ)_/¯
       modifies Repr
-      ensures AllValid(set v: Validatable | true)
+      ensures AllValid(set v: Validatable | allocated(v) && v.P())
     {
       this.x := x;
+      
       // This fails because `this` is not `Valid()` at this point. Yay!
       // SomeOtherExternalMethod();
+      
       this.y := 2*x;
+
+      forall v: Validatable | allocated(v) && v.P() ensures v.Valid() {
+        IndependentValidityInductive(v, Repr);
+      }
       SomeOtherExternalMethod();
+    }
+  }
+
+  twostate lemma IndependentValidityInductive(v: Validatable, changed: set<Validatable>)
+      requires old(AllValid(set v': Validatable | allocated(v') && v'.P()))
+      requires forall o :: o !in changed ==> unchanged(o)
+      requires forall o :: o in changed ==> o.Valid()
+      requires allocated(v)
+      decreases v.Repr
+      ensures v.Valid()
+  {
+    assert old(v.Valid());
+    forall v': Validatable | v' in v.Repr && v' != v && old(allocated(v')) ensures v'.Valid() {
+      IndependentValidityInductive(v', changed);
+    }
+    if v !in changed {
+      v.IndependentValidity();
     }
   }
 
   trait {:extern} ExternalNotAtomic {
     method Update(x: int) 
-      requires AllValid(set v: Validatable | true)
+      requires AllValid(set v: Validatable | v.P())
       modifies this
-      ensures AllValid(set v: Validatable | true)
+      ensures AllValid(set v: Validatable | v.P())
   }
 
-  method MakeExternalNotAtomic() returns (res: Validatable)
-    ensures forall o: Validatable :: allocated(o) && fresh(o) ==> o.Valid()
+  method MakeExternalNotAtomic() returns (res: AsExternalNotAtomic)
+    ensures forall o: Validatable :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
   {
     var internal := new NotAtomic(73);
     res := new AsExternalNotAtomic(internal);
-    // Postcondition doesn't hold. I probably need to assert that the constructors
-    // don't instantiate any new Validatables. 
   }
 
   class AsExternalNotAtomic extends Validatable {
@@ -96,46 +117,54 @@ module ExternalInvariants {
     predicate Valid() 
       reads this, Repr 
       ensures Valid() ==> this in Repr
+      ensures Valid() ==> forall v :: v in Repr ==> v.Repr <= Repr
+      ensures Valid() ==> forall v :: v in Repr && v != this ==> this !in v.Repr
     {
-      && this in Repr
       && wrapped in Repr
-      && wrapped.Repr <= Repr
-      && this !in wrapped.Repr
+      && Repr == {this} + wrapped.Repr
       && wrapped.Valid()
     }
+
+    twostate lemma IndependentValidity()
+      requires old(Valid())
+      requires unchanged(this)
+      requires forall v :: v in Repr && v != this ==> v.Valid()
+      ensures Valid()
+    {
+
+    }
+
     constructor(wrapped: NotAtomic) 
       requires wrapped.Valid() 
-      ensures forall o: Validatable :: allocated(o) && fresh(o) ==> o.Valid()
+      ensures forall o: Validatable :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
       ensures Valid() 
     {
       this.wrapped := wrapped;
       this.Repr := {this} + wrapped.Repr;
     }
     method Update(x: int) 
-      requires AllValid(set v: Validatable | true)
+      requires AllValid(set v: Validatable | allocated(v) && v.P())
       requires Valid()
       modifies Repr
-      ensures AllValid(set v: Validatable | true)
+      ensures AllValid(set v: Validatable | allocated(v) && v.P())
     {
       wrapped.Update(x);
     }
   }
 
+
   method SomeOtherExternalMethod() 
-    requires AllValid(set v: Validatable | true)
-    ensures AllValid(set v: Validatable | true)
+    requires AllValid(set v: Validatable | allocated(v) && v.P())
+    ensures AllValid(set v: Validatable | allocated(v) && v.P())
   {
     // Do some external stuff
   }
 
   method {:main} MyMain() 
-    requires AllValid(set v: Validatable | true) 
-    ensures AllValid(set v: Validatable | true) 
+    requires AllValid(set v: Validatable | allocated(v) && v.P()) 
+    ensures AllValid(set v: Validatable | allocated(v) && v.P()) 
   {
-    // Precondition doesn't hold. How do I convince Dafny that no instances of ANY
-    // reference types exist yet?
     var valid := MakeExternalNotAtomic();
-    AllValidLemma();
   }
 }
 

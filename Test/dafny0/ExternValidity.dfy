@@ -11,6 +11,19 @@ module ExternalInvariants {
     predicate P() {
       true
     }
+
+    twostate lemma AllStillValid() 
+      requires old(AllValid(set v: Validatable | allocated(v) && v.P()))
+      requires Valid()
+      requires forall o :: o !in Repr ==> unchanged(o)
+      requires forall o :: o in Repr ==> o.Valid()
+      ensures AllValid(set v: Validatable | allocated(v) && v.P())
+    {
+      forall v: Validatable | old(allocated(v)) && v.P() ensures v.Valid() {
+        IndependentValidityInductive(v, Repr);
+      }
+    }
+
     twostate lemma IndependentValidity()
       requires old(Valid())
       requires unchanged(this)
@@ -28,6 +41,23 @@ module ExternalInvariants {
     reads set v, o | v in vs && o in v.Repr :: o
   {
     forall v :: v in vs ==> v.Valid()
+  }
+
+  twostate lemma IndependentValidityInductive(v: Validatable, changed: set<Validatable>)
+      requires old(AllValid(set v': Validatable | allocated(v') && v'.P()))
+      requires forall o :: o !in changed ==> unchanged(o)
+      requires forall o :: o in changed ==> o.Valid()
+      requires allocated(v)
+      decreases v.Repr
+      ensures v.Valid()
+  {
+    assert old(v.Valid());
+    forall v': Validatable | v' in v.Repr && v' != v && old(allocated(v')) ensures v'.Valid() {
+      IndependentValidityInductive(v', changed);
+    }
+    if v !in changed {
+      v.IndependentValidity();
+    }
   }
 
   class NotAtomic extends Validatable {
@@ -69,32 +99,15 @@ module ExternalInvariants {
     {
       this.x := x;
       
-      // This fails because `this` is not `Valid()` at this point. Yay!
+      // This is not allowed because the external invariant isn't re-established
       // SomeOtherExternalMethod();
+      // And this fails because `this` is not `Valid()` at this point
+      // AllStillValid();
       
       this.y := 2*x;
 
-      forall v: Validatable | allocated(v) && v.P() ensures v.Valid() {
-        IndependentValidityInductive(v, Repr);
-      }
+      AllStillValid();
       SomeOtherExternalMethod();
-    }
-  }
-
-  twostate lemma IndependentValidityInductive(v: Validatable, changed: set<Validatable>)
-      requires old(AllValid(set v': Validatable | allocated(v') && v'.P()))
-      requires forall o :: o !in changed ==> unchanged(o)
-      requires forall o :: o in changed ==> o.Valid()
-      requires allocated(v)
-      decreases v.Repr
-      ensures v.Valid()
-  {
-    assert old(v.Valid());
-    forall v': Validatable | v' in v.Repr && v' != v && old(allocated(v')) ensures v'.Valid() {
-      IndependentValidityInductive(v', changed);
-    }
-    if v !in changed {
-      v.IndependentValidity();
     }
   }
 

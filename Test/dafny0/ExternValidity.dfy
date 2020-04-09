@@ -68,6 +68,7 @@ module ExternalInvariants {
     constructor(x: int) 
       ensures Valid() 
       ensures forall o: Validatable :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
+      ensures fresh(Repr)
     {
       this.x := x;
       this.y := 2*x;
@@ -101,6 +102,7 @@ module ExternalInvariants {
       
       // This is not allowed because the external invariant isn't re-established
       // SomeOtherExternalMethod();
+      
       // And this fails because `this` is not `Valid()` at this point
       // AllStillValid();
       
@@ -120,6 +122,8 @@ module ExternalInvariants {
 
   method MakeExternalNotAtomic() returns (res: AsExternalNotAtomic)
     ensures forall o: Validatable :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
+    ensures res.Valid()
+    ensures fresh(res.Repr)
   {
     var internal := new NotAtomic(73);
     res := new AsExternalNotAtomic(internal);
@@ -151,6 +155,7 @@ module ExternalInvariants {
       requires wrapped.Valid() 
       ensures forall o: Validatable :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
       ensures Valid() 
+      ensures fresh(Repr - wrapped.Repr)
     {
       this.wrapped := wrapped;
       this.Repr := {this} + wrapped.Repr;
@@ -178,6 +183,8 @@ module ExternalInvariants {
     ensures AllValid(set v: Validatable | allocated(v) && v.P()) 
   {
     var valid := MakeExternalNotAtomic();
+    valid.Update(5);
+    SomeOtherExternalMethod();
   }
 }
 

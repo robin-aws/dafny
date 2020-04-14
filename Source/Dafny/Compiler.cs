@@ -2275,6 +2275,10 @@ namespace Microsoft.Dafny {
             EmitMultiSelect(s0, tupleTypeArgsList, wr, tup, L);
           }
         }
+      } else if (stmt is ConcreteSyntaxStatement) {
+        var s = (ConcreteSyntaxStatement) stmt;
+        TrStmt(s.ResolvedStatement, wr);
+
       } else if (stmt is MatchStmt) {
         MatchStmt s = (MatchStmt)stmt;
         // Type source = e;
@@ -3589,7 +3593,6 @@ namespace Microsoft.Dafny {
             EmitReturnExpr(e.Body, true, w);
           }
         }
-
       } else if (expr is MatchExpr) {
         var e = (MatchExpr)expr;
         // ((System.Func<SourceType, TargetType>)((SourceType _source) => {

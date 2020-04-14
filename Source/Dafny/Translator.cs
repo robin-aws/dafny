@@ -175,6 +175,10 @@ namespace Microsoft.Dafny {
     [Pure]
     bool VisibleInScope(Declaration d) {
       Contract.Requires(d != null);
+      if (d is ClassDecl cl && cl.NonNullTypeDecl != null) {
+        // "provides" is recorded in the non-null type declaration, not the class
+        return cl.NonNullTypeDecl.IsVisibleInScope(currentScope);
+      }
       return d.IsVisibleInScope(currentScope);
     }
 
@@ -787,19 +791,10 @@ namespace Microsoft.Dafny {
           currentDeclaration = d;
           if (d is OpaqueTypeDecl) {
             AddTypeDecl((OpaqueTypeDecl)d);
-          } else if (d is RevealableTypeDecl) {
-            AddTypeDecl((RevealableTypeDecl)d);
           } else if (d is ModuleDecl) {
             // submodules have already been added as a top level module, ignore this.
-          } else if (d is ClassDecl) {
-            var cl = (ClassDecl)d;
-            AddClassMembers(cl, DafnyOptions.O.OptimizeResolution < 1);
-            if (cl.NonNullTypeDecl != null) {
-              AddTypeDecl(cl.NonNullTypeDecl);
-            }
-            if (d is IteratorDecl) {
-              AddIteratorSpecAndBody((IteratorDecl)d);
-            }
+          } else if (d is RevealableTypeDecl) {
+            AddTypeDecl((RevealableTypeDecl)d);
           } else {
             Contract.Assert(false);
           }
@@ -1172,6 +1167,15 @@ namespace Microsoft.Dafny {
           var dd = (NewtypeDecl)d;
           AddTypeDecl(dd);
           AddClassMembers(dd, true);
+        } else if (d is ClassDecl) {
+          var cl = (ClassDecl)d;
+          AddClassMembers(cl, DafnyOptions.O.OptimizeResolution < 1);
+          if (cl.NonNullTypeDecl != null) {
+            AddTypeDecl(cl.NonNullTypeDecl);
+          }
+          if (d is IteratorDecl) {
+            AddIteratorSpecAndBody((IteratorDecl)d);
+          }
         } else if (d is DatatypeDecl) {
           var dd = (DatatypeDecl)d;
           AddDatatype(dd);
@@ -2224,21 +2228,12 @@ namespace Microsoft.Dafny {
           AddFunction_Top((Function)member);
         } else if (member is Method) {
           if (includeMethods || InVerificationScope(member) || referencedMembers.Contains(member)) {
-            AddMember_Top(member);
+            AddMethod_Top((Method)member);
           }
         } else {
           Contract.Assert(false); throw new cce.UnreachableException();  // unexpected member
         }
       }
-    }
-
-    void AddMember_Top(MemberDecl mem) {
-      Contract.Requires(mem is Method);
-
-      if (mem is Method) {
-        AddMethod_Top((Method)mem);
-      }
-
     }
 
     void AddFunction_Top(Function f) {
@@ -3517,7 +3512,7 @@ namespace Microsoft.Dafny {
         receiver = new StaticReceiverExpr(tok, (ClassDecl)member.EnclosingClass, true);  // this also resolves it
       } else {
         receiver = new ImplicitThisExpr(tok);
-        receiver.Type = Resolver.GetThisType(tok, (TopLevelDeclWithMembers)member.EnclosingClass);  // resolve here
+        receiver.Type = Resolver.GetReceiverType(tok, member);  // resolve here
       }
 
       arguments = new List<Expression>();
@@ -3985,11 +3980,19 @@ namespace Microsoft.Dafny {
         Bpl.Expr o_ty = ClassTyCon(c, tyexprs);
 
         var isGoodHeap = FunctionCall(c.tok, BuiltinFunction.IsGoodHeap, null, h);
-        Bpl.Expr is_o = BplAnd(
-          ReceiverNotNull(o),
-          c is TraitDecl ? MkIs(o, o_ty) : DType(o, o_ty));  // $Is(o, ..)  or  dtype(o) == o_ty
-        var udt = UserDefinedType.FromTopLevelDecl(c.tok, c);
-        Bpl.Expr isalloc_o = c is ClassDecl ? IsAlloced(c.tok, h, o) : MkIsAlloc(o, udt, h);
+        Bpl.Expr isalloc_o;
+        if (!(c is ClassDecl)) {
+          var udt = UserDefinedType.FromTopLevelDecl(c.tok, c);
+          isalloc_o = MkIsAlloc(o, udt, h);
+        } else if (RevealedInScope(c)) {
+          isalloc_o = IsAlloced(c.tok, h, o);
+        } else {
+          // c is only provided, not revealed, in the scope. Use the non-null type decl's internal synonym
+          var cl = (ClassDecl)c;
+          Contract.Assert(cl.NonNullTypeDecl != null);
+          var udt = UserDefinedType.FromTopLevelDecl(c.tok, cl.NonNullTypeDecl);
+          isalloc_o = MkIsAlloc(o, udt, h);
+        }
 
         Bpl.Expr indexBounds = Bpl.Expr.True;
         Bpl.Expr oDotF;
@@ -4039,6 +4042,9 @@ namespace Microsoft.Dafny {
           // Note: for the allocation axiom, isGoodHeap is added back in for !f.IsMutable below
         }
         if (!(f is ConstantField)) {
+          Bpl.Expr is_o = BplAnd(
+            ReceiverNotNull(o),
+            c is TraitDecl ? MkIs(o, o_ty) : DType(o, o_ty));  // $Is(o, ..)  or  dtype(o) == o_ty
           ante = BplAnd(ante, is_o);
         }
         ante = BplAnd(ante, indexBounds);
@@ -7636,7 +7642,6 @@ namespace Microsoft.Dafny {
         CheckWellformedWithResult(e.Els, options, result, resultType, locals, bElse, etran);
         builder.Add(new Bpl.IfCmd(expr.tok, etran.TrExpr(e.Test), bThen.Collect(expr.tok), null, bElse.Collect(expr.tok)));
         result = null;
-
       } else if (expr is MatchExpr) {
         MatchExpr me = (MatchExpr)expr;
         CheckWellformed(me.Source, options, locals, builder, etran);
@@ -7659,7 +7664,9 @@ namespace Microsoft.Dafny {
             }
             builder.Add(new Bpl.HavocCmd(me.tok, havocIds));
           }
-          b.Add(Assert(me.tok, Bpl.Expr.False, "missing case in case statement: " + missingCtor.Name));
+
+          String missingStr = me.Context.FillHole(new IdCtx(new KeyValuePair<string, DatatypeCtor>(missingCtor.Name, missingCtor))).AbstractAllHoles().ToString();
+          b.Add(Assert(me.tok, Bpl.Expr.False, "missing case in match expression: " + missingStr));
 
           Bpl.Expr guard = Bpl.Expr.Eq(src, r);
           ifCmd = new Bpl.IfCmd(me.tok, guard, b.Collect(me.tok), ifCmd, els);
@@ -8693,7 +8700,7 @@ namespace Microsoft.Dafny {
       var inner_name = GetClass(td).TypedIdent.Name;
       string name = "T" + inner_name;
       // Create the type constructor
-      if (!(td is ClassDecl && td.Name == "object")) {  // the type constructor for "object" is in DafnyPrelude.bpl
+      if (!(td is ClassDecl cl && cl.IsObjectTrait)) {  // the type constructor for "object" is in DafnyPrelude.bpl
         Bpl.Variable tyVarOut = BplFormalVar(null, predef.Ty, false);
         List<Bpl.Variable> args = new List<Bpl.Variable>(
           Enumerable.Range(0, arity).Select(i =>
@@ -10393,6 +10400,9 @@ namespace Microsoft.Dafny {
         }
         CurrentIdGenerator.Pop();
         this.fuelContext = FuelSetting.PopFuelContext();
+      } else if (stmt is ConcreteSyntaxStatement) {
+        ConcreteSyntaxStatement s = (ConcreteSyntaxStatement)stmt;
+        TrStmt(s.ResolvedStatement, builder, locals, etran);
       } else if (stmt is MatchStmt) {
         var s = (MatchStmt)stmt;
         TrStmt_CheckWellformed(s.Source, builder, locals, etran, true);
@@ -10417,7 +10427,8 @@ namespace Microsoft.Dafny {
             }
             builder.Add(new Bpl.HavocCmd(s.Tok, havocIds));
           }
-          b.Add(Assert(s.Tok, Bpl.Expr.False, "missing case in case statement: " + missingCtor.Name));
+          String missingStr = s.Context.FillHole(new IdCtx(new KeyValuePair<string, DatatypeCtor>(missingCtor.Name, missingCtor))).AbstractAllHoles().ToString();
+          b.Add(Assert(s.Tok, Bpl.Expr.False, "missing case in match statement: " + missingStr));
 
           Bpl.Expr guard = Bpl.Expr.Eq(source, r);
           ifCmd = new Bpl.IfCmd(s.Tok, guard, b.Collect(s.Tok), ifCmd, els);
@@ -15441,7 +15452,6 @@ namespace Microsoft.Dafny {
           var thn = translator.RemoveLit(TrExpr(e.Thn));
           var els = translator.RemoveLit(TrExpr(e.Els));
           return new NAryExpr(expr.tok, new IfThenElse(expr.tok), new List<Bpl.Expr> { g, thn, els });
-
         } else if (expr is MatchExpr) {
           var e = (MatchExpr)expr;
           var ite = DesugarMatchExpr(e);
@@ -17888,7 +17898,6 @@ namespace Microsoft.Dafny {
             var newLet = new SubstLetExpr(e.tok, e.LHSs, new List<Expression>{ rhs }, body, e.Exact, e, newSubstMap, newTypeMap);
             newExpr = newLet;
           }
-
         } else if (expr is MatchExpr) {
           var e = (MatchExpr)expr;
           var src = Substitute(e.Source);
@@ -17905,7 +17914,7 @@ namespace Microsoft.Dafny {
             if (newBoundVars != mc.Arguments || body != mc.Body) {
               anythingChanged = true;
             }
-            var newCaseExpr = new MatchCaseExpr(mc.tok, mc.Id, newBoundVars, body);
+            var newCaseExpr = new MatchCaseExpr(mc.tok, mc.Ctor, newBoundVars, body);
             newCaseExpr.Ctor = mc.Ctor;  // resolve here
             cases.Add(newCaseExpr);
           }
@@ -18298,6 +18307,9 @@ namespace Microsoft.Dafny {
           rr.Steps.AddRange(s.Steps.ConvertAll(Substitute));
           rr.Result = Substitute(s.Result);
           r = rr;
+        } else if (stmt is ConcreteSyntaxStatement) {
+          var s = (ConcreteSyntaxStatement)stmt;
+          r = SubstStmt(s.ResolvedStatement);
         } else if (stmt is MatchStmt) {
           var s = (MatchStmt)stmt;
           var rr = new MatchStmt(s.Tok, s.EndTok, Substitute(s.Source), s.Cases.ConvertAll(SubstMatchCaseStmt), s.UsesOptionalBraces);
@@ -18427,7 +18439,7 @@ namespace Microsoft.Dafny {
       protected MatchCaseStmt SubstMatchCaseStmt(MatchCaseStmt c) {
         Contract.Requires(c != null);
         var newBoundVars = CreateBoundVarSubstitutions(c.Arguments, false);
-        var r = new MatchCaseStmt(c.tok, c.Id, newBoundVars, c.Body.ConvertAll(SubstStmt));
+        var r = new MatchCaseStmt(c.tok, c.Ctor, newBoundVars, c.Body.ConvertAll(SubstStmt));
         r.Ctor = c.Ctor;
         // undo any changes to substMap (could be optimized to do this only if newBoundVars != e.Vars)
         foreach (var bv in c.Arguments) {

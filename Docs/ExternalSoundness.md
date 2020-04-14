@@ -1,11 +1,20 @@
-# External Invariants
+# External Soundness
 
+## Disallow unsound elements on external methods
+
+
+
+## External Invariant
+
+Disallowing any `requires` clauses ...
 
 For every externally-accessible method signature:
 
 ```Dafny
-forall M: ExternMethod :: (initial heap state) ==> M.requires()
+forall M: ExternMethod :: initialHeapState() ==> M.requires()
 ```
+
+### The initial heap state 
 
 ```dafny
 forall M, M': ExternMethod :: M'.ensures() ==> M.requires()
@@ -25,6 +34,3 @@ forall M: ExternMethod {
 ```
 
 
-
-
-```

@@ -2,7 +2,7 @@
 
 ## Disallow unsound elements on external methods
 
-
+This means 
 
 ## External Invariant
 
@@ -23,6 +23,8 @@ forall M, M': ExternMethod :: M'.ensures() ==> M.requires()
 ```dafny
 forall M: ExternMethod, N: NativeMethod :: N.requires() ==> M.requires()
 ```
+
+In practice, it is difficult if not impossible to ensure that a method can be implemented in external code yet not invoked from external code.
 
 If we assume `ExternMethod == NativeMethod`:
 

@@ -3,7 +3,6 @@ trait List {
     reads this, Repr
     ensures Valid() ==> this in Repr
   ghost var Repr: set<object>
-
   ghost var values: seq<int>
 
   function method Length(): int
@@ -131,11 +130,15 @@ class ArrayList extends List {
 
 trait {:extern} ExternalList {
 
+  // TODO-RS: apply my "external invariant" strategy for ensuring externally-visible
+  // methods are always Valid()
   predicate Valid()
     reads this, Repr
     ensures Valid() ==> this in Repr
   ghost var Repr: set<object>
 
+  // TODO-RS: figure out how to make this just a method
+  // but safely used like a function
   function method Length(): int 
     requires Valid()
     reads Repr

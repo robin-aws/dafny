@@ -10,7 +10,8 @@ The impact of unsoundness becomes severe in this case. If a Dafny method declare
 
 ## Requirements
 
-1. The Dafny compiler should reject unsound programs involving external declarations as much as possible, and should make intentional unproven assumptions as explicit as possible, to aid in understanding and tracking potential technical debt.
+1. The Dafny compiler should reject unsound programs involving external declarations by default as much as possible.
+1. It must be possible to attach unproven assumptions to external code. The fact that these assumptions are unproven shoudl be as explicit as possible, to aid in understanding and tracking potential technical debt.
 1. We should aim to minimize the amount of manual shim code we have to write in each target language, as this directly affects the scalability of our approach.
 1. The errors we provide to customers when their code violates requirements should be as clear as possible, ideally allowing them to understand the error by only referring to the target language API documentation and not the underlying Dafny source code.
 1. (Nice to have) We would be happier with a solution that allows us to separate Dafny and target language source code cleanly, such that the latter can be developed, tested and built with standard tooling for each language.

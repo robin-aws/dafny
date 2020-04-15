@@ -68,9 +68,12 @@ class ArrayList extends List {
     requires Valid()
     requires 0 <= i < Length()
     modifies Repr
+    ensures Valid()
     ensures values == old(values[..i]) + [element] + old(values[i + 1..])
   {
     data[i] := element;
+    
+    values := values[..i] + [element] + values[i + 1..];
   }
 
   method Add(element: int)
@@ -83,6 +86,8 @@ class ArrayList extends List {
     }
     data[length] := element;
     length := length + 1;
+
+    values := values + [element];
   }
 
   method Grow() 

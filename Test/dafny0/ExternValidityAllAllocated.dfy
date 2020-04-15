@@ -67,8 +67,8 @@ module ExternalInvariants {
 
     constructor(x: int) 
       ensures Valid() 
-      ensures forall o: Validatable :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
       ensures fresh(Repr)
+      ensures forall o: Validatable :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
     {
       this.x := x;
       this.y := 2*x;
@@ -147,15 +147,13 @@ module ExternalInvariants {
       requires unchanged(this)
       requires forall v :: v in Repr && v != this ==> v.Valid()
       ensures Valid()
-    {
-
-    }
+    {}
 
     constructor(wrapped: NotAtomic) 
       requires wrapped.Valid() 
-      ensures forall o: Validatable :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
       ensures Valid() 
       ensures fresh(Repr - wrapped.Repr)
+      ensures forall o: Validatable :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
     {
       this.wrapped := wrapped;
       this.Repr := {this} + wrapped.Repr;

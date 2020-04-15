@@ -50,7 +50,7 @@ Most issues can be addressed by forbidding all elements of Dafny method declarat
 class Foo {
 
   invariant Valid()
-
+  
 }
 ```
 

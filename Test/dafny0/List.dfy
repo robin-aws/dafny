@@ -5,7 +5,7 @@ trait List {
   ghost var Repr: set<object>
   ghost var values: seq<int>
 
-  function method Length(): int
+  function method Length(): nat
     requires Valid()
     reads this, Repr
     ensures Length() == |values|
@@ -37,7 +37,7 @@ trait List {
 class ArrayList extends List {
 
   var data: array<int>
-  var length: int
+  var length: nat
 
   constructor() 
     ensures Valid()
@@ -60,7 +60,7 @@ class ArrayList extends List {
     && values == data[..length]
   }
 
-  function method Length(): int
+  function method Length(): nat
     requires Valid()
     reads this, Repr
     ensures Length() == |values|
@@ -131,15 +131,19 @@ class ArrayList extends List {
 trait {:extern} ExternalList {
 
   // TODO-RS: apply my "external invariant" strategy for ensuring externally-visible
-  // methods are always Valid()
+  // object are always Valid()
+
+  // TODO-RS: Can we make this "true" by default, so external implementations are 
+  // assumed to be always valid through things like access control and critical sections?
   predicate Valid()
     reads this, Repr
     ensures Valid() ==> this in Repr
+
+  // TODO-RS: Similarly, can we assign this to {} or {this} by default somehow?
   ghost var Repr: set<object>
 
-  // TODO-RS: figure out how to make this just a method
-  // but safely used like a function
-  function method Length(): int 
+  // TODO-RS: figure out how to enforce that this acts like a function
+  function method Length(): int
     requires Valid()
     reads Repr
     ensures Valid()
@@ -187,7 +191,7 @@ class AsExternalList extends ExternalList {
     && wrapped.Valid()
   }
 
-  function method Length(): int 
+  function method Length(): int
     requires Valid()
     reads Repr
   {
@@ -198,7 +202,7 @@ class AsExternalList extends ExternalList {
     requires Valid()
     decreases Repr
   {
-    expect 0 <= i < Length();
+    expect 0 <= i < wrapped.Length();
     res := wrapped.Get(i);
   }
   
@@ -209,7 +213,7 @@ class AsExternalList extends ExternalList {
     ensures Valid()
     ensures fresh(Repr - old(Repr))
   {
-    expect 0 <= i < Length();
+    expect 0 <= i < wrapped.Length();
     wrapped.Set(i, element);
     Repr := {this} + wrapped.Repr;
   }
@@ -250,13 +254,17 @@ class AsList extends List {
     && wrapped.Valid()
   }
 
-  function method Length(): int
+  function method Length(): nat
     requires Valid()
     reads this, Repr
     ensures Length() == |values|
   {
-    assume {:axiom} wrapped.Length() == |values|;
-    wrapped.Length()
+    var result := wrapped.Length();
+    // TODO-RS: Ideally we would include `expect result >= 0;`, but
+    // we can't currently do that in a function, even though we really want that in
+    // the compiled version.
+    assume {:axiom} result == |values|;
+    result
   }
   
   method Get(i: int) returns (res: int)

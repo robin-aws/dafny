@@ -46,6 +46,8 @@ Most issues can be addressed by forbidding all elements of Dafny method declarat
 
 ### Object Invariants
 
+Many other programming languages ensure object invariants through a combination of access control (making fields private so that all access and mutation happens only within a bounded set of methods) and concurrency control (to ensure only one thread can ever observe an object in an invalid state at one time). This ensures that objects are valid by default. Dafny instead approaches this by validating that any operation that requires an object to be valid (which in practice is nearly all of them) provides proof that this is true, based on the context of the operation. Thus Dafny objects are assumed invalid unless proven valid.
+
 ```dafny
 class Foo {
 

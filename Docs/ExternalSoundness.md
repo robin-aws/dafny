@@ -32,35 +32,73 @@ The `{:extern}` attribute is currently quite overloaded. It can be applied to mo
 
 We should first distiguish between two different cases of linkage with external code, for the sake of consistent terminology:
 
-1. *External* methods, referring to methods that external code is able to invoke.
-1. *Native* methods, referring to methods that are implemented in external code.
+1. *Exposed* methods, referring to methods that external code is able to invoke.
+1. *Native* methods, referring to methods that may be implemented in external code.
 
-Currently, external methods may be invoked without necessarily satisfying their pre-conditions ([#461](https://github.com/dafny-lang/dafny/issues/461)) and the implementation of native methods may not necessarily satisfy their post-conditions ([#463](https://github.com/dafny-lang/dafny/issues/461)).
+In practice, it is difficult if not impossible to ensure that a method can be implemented in external code yet not invoked from external code. For example, it is natural for a Dafny code base to define a trait that is compiled to a C# interface, which can then be implemented using a C# class. There is nothing to stop other C# client code from creating this class and invoking its methods. In addition, there will be frequent use cases for methods that need to support both external invocation and native implementations anyway, such as the `List` example in this doc. Therefore, we propose focussing on this use case first. This is a two-way door: we can always support sound external-only or native-only methods in a future release of Dafny with looser restrictions, if this turns out to be strongly desired.
 
-In practice, it is difficult if not impossible to ensure that a method can be implemented in external code yet not invoked from external code. For example, it is natural for a Dafny code base to define a trait that is compiled to a C# interface, which can then be implemented using a C# class. There is nothing to stop other client code from creating this class and invoking its methods. In addition, there will be frequent use cases for methods that need to support both external invocation and native implementations anyway, such as the `List` example in this doc. Therefore, we propose focussing on this use case first. This is a two-way door: we can always support external-only or native-only methods in a future release of Dafny if that is truly needed.
+(*** CONNECT ***)
 
-The biggest threat to soundness is that most Dafny guarantees are checked statically. A fundamental feature of Dafny is pre- and post-conditions, expressed using `requires` and `ensures` declarations respectively. Most issues can be addressed by forbidding all elements of Dafny method declarations that cannot be directly compiled to elements in the target language:
+Most issues can be addressed by forbidding all elements of Dafny method declarations that cannot be directly compiled to elements in the target language, as shown below.
 
-1. Disallow any and all preconditions and postconditions.
-1. Disallow unbounded and/or infinite precision numeric types as in or out parameters, instead requiring concrete subtypes supported by the target language or Dafny runtime library for that language.
-1. Disallow all other subtypes as in or out parameters.
-1. Enforce all reference types used as in or out parameters must be nullable (i.e. `Foo?` rather than just `Foo`).
+### Disallow types not directly supports by the target language/runtime
 
-### Object Invariants
+This includes not only most subtypes but also `newtype` declarations that do not match a built-in type such as `int` exactly. Allowing a bounded type such as `newtype MyType = x | -100 <= x < 0x8000_0000` that compiles to a type such as `int` still introduces unsoundness, since external code could return `-1000`.
+
+### Require all reference types used as in or out parameters are nullable (i.e. `Foo?` rather than just `Foo`).
+
+This is a corrolary of the previous statement, since many reference types in Dafny source code are implicitly non-null subtypes.
+
+### Disallow almost all preconditions and postconditions.
+
+The attentive reader will likely be surprised by the "almost" in the title of this section.
+
+The biggest threat to soundness is that most Dafny guarantees are checked statically. A fundamental feature of Dafny is pre- and post-conditions, expressed using `requires` and `ensures` declarations respectively. Currently, external methods may be invoked without necessarily satisfying their pre-conditions ([#461](https://github.com/dafny-lang/dafny/issues/461)) and the implementation of native methods may not necessarily satisfy their post-conditions ([#463](https://github.com/dafny-lang/dafny/issues/461)).
+
+
+
+### External Invariants
 
 Many other programming languages ensure object invariants through a combination of access control (making fields private so that all access and mutation happens only within a bounded set of methods) and concurrency control (to ensure only one thread can ever observe an object in an invalid state at one time). This ensures that objects are valid by default. Dafny instead approaches this by validating that any operation that requires an object to be valid (which in practice is nearly all of them) provides proof that this is true, based on the context of the operation. Thus Dafny objects are assumed invalid unless proven valid.
 
 Because of this, disallowing all preconditions on external methods is extremely limiting: it means that absolutely nothing can be assumed about any Dafny objects in the control flow of external methods. It is often not possible to dynamically verify a predicate such as `Valid()` since it usually refers to ghost state, and even if it was possible would often be prohibitively expensive. It is also dangerous, however, to allow external methods to assume objects are in a `Valid()` state without proof, for the same reasons that we cannot allow stray `null` values to pollute the Dafny runtime.
 
-If we assume and/or enforce certain invariants about the linkage between Dafny and external code, however, it is possible 
+If we assume and/or enforce certain invariants about the linkage between Dafny and external code, however, it is possible allow very specific pre- and post-conditions on external methods. Let's assume for the moment that Dafny objects can only be modified through Dafny methods, and not directly by external code referencing the internals of compiled code directly. This means if a predicate that reads some subset of the Dafny heap holds when control is passed to external code, it will remain true whenever Dafny code begins to execute again.
+
+We can consider the implications while abusing Dafny notation. Since external code will be able to invoke exposed Dafny methods in any arbitrary order, the state of the Dafny heap after any one method must satisfy the requirements of all such methods. So:
 
 ```dafny
-class Foo {
-
-  invariant Valid()
-  
-}
+forall m: ExposedMethod, m': ExposedMethod :: m'.ensures() ==> m.requires()
 ```
+
+Since native implementations will be able to turn around and invoke any externally-invokable method:
+
+```dafny
+forall m: ExposedMethod, n: NativeMethod :: n.requires() ==> m.requires()
+```
+
+If we make the simplifying assumption above that `ExposedMethod == NativeMethod` and label both as *external methods*, we have:
+
+```dafny
+forall m: ExternalMethod, m': ExternalMethod :: m'.requires() ==> m.requires() && m.ensures() ==> m.requires()
+```
+
+Therefore the pre-condition of every exposed method must be equivalent, and the post-condition of every such method must imply this pre-condition. We can refer to this single predicate as the *external invariant*. Although we may not know exactly what to make it, we at least know that the Dafny verifer should enforce that for every external method, its pre-condition must be equal to this invariant, and its post-condition at least as strong. That is:
+
+```dafny
+exists p: bool ::
+  forall m: ExternMethod :: m.requires() == p && m.ensures() ==> p
+```
+
+### Defining the External Invariant
+
+The question is now what
+
+### Disallow references to non-extern compiled elements
+
+### Disallow unsound elements on external methods
+
+### 
 
 ## One-Way Doors
 
@@ -75,45 +113,6 @@ There are two major categories of one-way doors, corresponding to the two aspect
 * (make new version of :extern or whatever on by default in Dafny 3.0?)
 
 ## Appendices
-
-
-### Disallow references to non-extern compiled elements
-
-### Disallow unsound elements on external methods
-
-This means 
-
-## External Invariant
-
-Disallowing any `requires` clauses ...
-
-For every externally-accessible method signature:
-
-```Dafny
-forall m: ExternMethod :: initialHeapState() ==> m.requires()
-```
-
-### The initial heap state 
-
-Since external code will be able to invoke external Dafny methods in any arbitrary order, the state of the Dafny heap after any one method must satisfy the requirements of all such methods. So:
-
-```dafny
-forall m, m': ExternMethod :: m'.ensures() ==> m.requires()
-```
-
-Since native implementations will be able to turn around and invoke any externally-invokable method:
-
-```dafny
-forall m: ExternMethod, n: NativeMethod :: n.requires() ==> m.requires()
-```
-
-
-
-If we assume `ExternMethod == NativeMethod`:
-
-```dafny
-forall m: ExternMethod :: m.requires() ==> m.ensures() && m.ensures() ==> m.requires()
-```
 
 *Note*: applying invariant to input values of external methods. Pro of straight quantification approach.
 

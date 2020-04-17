@@ -26,16 +26,13 @@ The impact of unsoundness becomes severe in this case. If a Dafny method declare
 
 The `{:extern}` attribute is currently quite overloaded. It can be applied to modules, traits, classes, methods and functions, and in most cases its effect is only to ensure that the names of these elements are preserved by the compiler, so that external code can reference them in some way. The details of how Dafny-generated code and manually-written external code are combined is largely left up to the specific target language. See Dafny GitHub issue [#469](https://github.com/dafny-lang/dafny/issues/469) for details.
 
-
-
-(*** A bit about limiting the scope of what is external? ***)
-
-We should first distiguish between two different cases of linkage with external code, for the sake of consistent terminology:
+We should first distiguish between two different use cases for linkage with external code, for the sake of consistent terminology:
 
 1. *Exposed* methods, referring to methods that external code is able to invoke.
 1. *Native* methods, referring to methods that may be implemented in external code.
 
 In practice, it is difficult if not impossible to ensure that a method can be implemented in external code yet not invoked from external code. For example, it is natural for a Dafny code base to define a trait that is compiled to a C# interface, which can then be implemented using a C# class. There is nothing to stop other C# client code from creating this class and invoking its methods. In addition, there will be frequent use cases for methods that need to support both external invocation and native implementations anyway, such as the `List` example in this doc. Therefore, we propose focussing on this use case first. This is a two-way door: we can always support sound external-only or native-only methods in a future release of Dafny with looser restrictions, if this turns out to be strongly desired.
+
 
 (*** Only support external traits for simplicity: compiler verifies trait is well-formed when external, resolver verifies classes/datatypes implement the trait correctly ***)
 
@@ -56,8 +53,6 @@ This is a corrolary of the previous statement, since many reference types in Daf
 The attentive reader will likely be surprised by the "almost" in the title of this section.
 
 The biggest threat to soundness is that most Dafny guarantees are checked statically. A fundamental feature of Dafny is pre- and post-conditions, expressed using `requires` and `ensures` declarations respectively. Currently, external methods may be invoked without necessarily satisfying their pre-conditions ([#461](https://github.com/dafny-lang/dafny/issues/461)) and the implementation of native methods may not necessarily satisfy their post-conditions ([#463](https://github.com/dafny-lang/dafny/issues/461)).
-
-
 
 ### External Invariants
 
@@ -96,12 +91,26 @@ exists p: bool ::
 
 The question is now what
 
+Options:
+
+* invariant = `true`, all objects immutable
+* invariant = `forall v: Validatable :: v.Valid()`
+  * Requires proving that if one object changes to another valid state, all other previously valid objects are still valid
+* invariant = `forall v: Validatable :: v.Valid() && forall v': Validatable :: v != v' ==> v.Repr !! v'.Repr`
+
 
 * Any object that doesn't implement Validatable must be strictly owned by an object that does. Assumption is that any such object either hasn't changed or is in the ValidatableRepr of another object in scope.
+* Allow a subobject with a changing Repr iff you are the one making the change and can update your own Repr
 
-### Disallow references to non-extern compiled elements
+### Discourage references to non-extern compiled elements
 
-### Supports traits extending other traits
+The motivation here is to ensure external code does not interact with any part of the Dafny-generated code that has not been validated as safe to expose externally. This is critical to ensure the above assumption that the set of Dafny objects does not change outside of Dafny source code.
+
+Ideally, the compiler would attach access control to non-external elements so this is enforced by the target language compiler and/or runtime. This would prevent Dafny-generated code in one package from referencing Dafny-generated code in another, however, which is a long-term goal. Therefore, we will instead intentionally munge the identifiers generated for non-external elements to discourage external references. This will likely involve appending something like `__DAFNY_INTERNAL__` to these identifiers.
+
+
+
+### Support traits extending other traits
 
 ## One-Way Doors
 

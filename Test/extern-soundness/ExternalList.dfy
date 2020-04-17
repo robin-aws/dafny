@@ -1,5 +1,5 @@
 include "./List.dfy"
-include "./ExternalInvariants.dfy"
+include "./ExternalInvariantsDisjoint.dfy"
 
 module ExternalCollections {
 
@@ -16,28 +16,16 @@ module ExternalCollections {
     {
       this.list := list;
       this.Repr := {this, list} + list.Repr;
-      this.ValidatableRepr := {this};
     }
 
     predicate Valid() 
       reads this, Repr 
       ensures Valid() ==> this in Repr
-      ensures Valid() ==> forall v :: v in ValidatableRepr ==> v.Repr <= Repr
-      ensures Valid() ==> forall v :: v in ValidatableRepr && v != this ==> this !in v.Repr 
     {
       && list in Repr
       && Repr == {this, list} + list.Repr
-      && ValidatableRepr == {this}
       && list.Repr <= Repr
       && list.Valid()
-    }
-
-    twostate lemma IndependentValidity()
-      requires old(Valid())
-      requires unchanged(this, Repr - ValidatableRepr)
-      requires forall v :: v in ValidatableRepr && v != this ==> v.Valid()
-      ensures Valid()
-    {
     }
   }
 
@@ -82,13 +70,12 @@ module ExternalCollections {
     {
       this.wrapped := new ValidatableList(wrapped);
       this.Repr := {this} + wrapped.Repr;
+      this.ExtRepr := Repr;
     }
 
     predicate Valid() 
       reads this, Repr 
       ensures Valid() ==> this in Repr
-      ensures Valid() ==> forall v :: v in ValidatableRepr ==> v.Repr <= Repr
-      ensures Valid() ==> forall v :: v in ValidatableRepr && v != this ==> this !in v.Repr
       ensures Valid() ==> ExtValid()
     {
       && wrapped in Repr
@@ -108,14 +95,6 @@ module ExternalCollections {
       && ExtRepr == Repr
     }
 
-    twostate lemma IndependentValidity()
-      requires old(Valid())
-      requires unchanged(this)
-      requires forall v :: v in ValidatableRepr && v != this ==> v.Valid()
-      ensures Valid() {
-
-      }
-
     function method Length(): int
       reads Repr
     {
@@ -132,12 +111,10 @@ module ExternalCollections {
     }
     
     method Set(i: int, element: int)
-      requires Valid()
-      modifies Repr
-      decreases Repr
-      ensures Valid()
-      ensures fresh(Repr - old(Repr))
+      requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+      ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
     {
+      AllValidMakesMeValid();
       expect 0 <= i < wrapped.list.Length();
       expect 0 <= element;
       wrapped.list.Set(i, element);
@@ -163,17 +140,19 @@ module ExternalCollections {
     var wrapped: ExternalList
 
     constructor(wrapped: ExternalList) 
+      requires wrapped.ExtValid()
       ensures Valid()
     {
       this.wrapped := wrapped;
-      this.Repr := {this};
+      this.Repr := {this} + wrapped.ExtRepr;
     }
 
     predicate Valid()
       reads this, Repr
       ensures Valid() ==> this in Repr 
     {
-      && Repr == {this}
+      && wrapped in Repr
+      && Repr == {this} + wrapped.ExtRepr
       && wrapped.ExtValid()
     }
 
@@ -193,6 +172,7 @@ module ExternalCollections {
     method Get(i: int) returns (res: nat)
       requires Valid()
       requires 0 <= i < Length()
+      modifies Repr
       decreases Repr
       ensures res == values[i]
     {

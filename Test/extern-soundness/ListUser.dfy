@@ -18,6 +18,7 @@ module ListUser {
     }
   }
 
+  // Exposed method for external client
   method ExternalSum(list: ExternalList) returns (res: nat) 
     requires list.Valid()
   {

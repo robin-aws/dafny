@@ -111,6 +111,7 @@ There are two major categories of one-way doors, corresponding to the two aspect
 ## Open Questions
 
 * (make new version of :extern or whatever on by default in Dafny 3.0?)
+* (Termination??)
 
 ## Appendices
 

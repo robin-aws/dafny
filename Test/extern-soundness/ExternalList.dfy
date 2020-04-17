@@ -1,52 +1,33 @@
 include "./List.dfy"
+include "./ExternalInvariants.dfy"
 
 module ExternalCollections {
 
   import opened Collections
+  import opened ExternalInvariants
 
   trait {:extern} ExternalList {
 
-    // TODO-RS: apply my "external invariant" strategy for ensuring externally-visible
-    // object are always Valid()
-
-    // TODO-RS: Can we make this "true" by default, so external implementations are 
-    // assumed to be always valid through things like access control and critical sections?
-    predicate Valid()
-      reads this, Repr
-      ensures Valid() ==> this in Repr
-
-    // TODO-RS: Similarly, can we assign this to {} or {this} by default somehow?
-    ghost var Repr: set<object>
-
     // TODO-RS: figure out how to enforce that this acts like a function
     function method Length(): int
-      requires Valid()
-      reads Repr
-      ensures Valid()
     
     method Get(i: int) returns (res: int)
-      requires Valid()
-      decreases Repr
+      requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+      ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
     
     method Set(i: int, element: int)
-      requires Valid()
-      modifies Repr
-      decreases Repr
-      ensures Valid()
-      ensures fresh(Repr - old(Repr))
+      requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+      ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
     
     method Add(element: int)
-      requires Valid()
-      modifies Repr
-      decreases Repr
-      ensures Valid()
-      ensures fresh(Repr - old(Repr))
+      requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+      ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
   }
 
   /*
    * Adapts a Dafny-internal List as an ExternalList
    */
-  class AsExternalList extends ExternalList {
+  class AsExternalList extends ExternalList, ExternallyValid {
 
     var wrapped: List
 
@@ -55,20 +36,27 @@ module ExternalCollections {
       ensures Valid()
     {
       this.wrapped := wrapped;
-      this.Repr := {this} + wrapped.Repr;
     }
 
     predicate Valid()
-      reads this, Repr
-      ensures Valid() ==> this in Repr 
+      reads this, wrapped.Repr
+      ensures Valid() ==> this in Repr
     {
-      && wrapped in Repr
       && Repr == {this} + wrapped.Repr
       && wrapped in wrapped.Repr
       && this !in wrapped.Repr
       && wrapped.Repr <= Repr
       && wrapped.Valid()
     }
+
+
+    twostate lemma IndependentValidity()
+      requires old(Valid())
+      requires unchanged(this)
+      requires forall v :: v in Repr && v != this ==> v.Valid()
+      ensures Valid() {
+
+      }
 
     function method Length(): int
       requires Valid()
@@ -95,7 +83,6 @@ module ExternalCollections {
       expect 0 <= i < wrapped.Length();
       expect 0 <= element;
       wrapped.Set(i, element);
-      Repr := {this} + wrapped.Repr;
     }
     
     method Add(element: int)
@@ -107,7 +94,6 @@ module ExternalCollections {
     {
       expect 0 <= element;
       wrapped.Add(element);
-      Repr := {this} + wrapped.Repr;
     }
   }
 
@@ -119,23 +105,17 @@ module ExternalCollections {
     var wrapped: ExternalList
 
     constructor(wrapped: ExternalList) 
-      requires wrapped.Valid()
       ensures Valid()
     {
       this.wrapped := wrapped;
-      this.Repr := {this} + wrapped.Repr;
+      this.Repr := {this};
     }
 
     predicate Valid()
       reads this, Repr
       ensures Valid() ==> this in Repr 
     {
-      && wrapped in Repr
-      && Repr == {this} + wrapped.Repr
-      && wrapped in wrapped.Repr
-      && this !in wrapped.Repr
-      && wrapped.Repr <= Repr
-      && wrapped.Valid()
+      && Repr == {this}
     }
 
     function method Length(): nat
@@ -162,8 +142,7 @@ module ExternalCollections {
       expect 0 <= result;
       res := result;
       
-      // TODO-RS: Replace with `expect {:axiom} ...` when supported.
-      assume res == values[i];
+      Axiom(res == values[i]);
     }
     
     method Set(i: int, element: nat)
@@ -177,12 +156,11 @@ module ExternalCollections {
     {
       wrapped.Set(i, element);
 
-      // Presumably cheap sanity check
+      // Presumably cheap sanity check. This will be a tradeoff on a per-operation basis.
       var elementAfter := wrapped.Get(i);
       expect elementAfter == element;
 
       values := values[..i] + [element] + values[i + 1..];
-      Repr := {this} + wrapped.Repr;
     }
 
     method Add(element: nat)
@@ -198,9 +176,11 @@ module ExternalCollections {
       wrapped.Add(element);
 
       values := values + [element];
-      Repr := {this} + wrapped.Repr;
 
       expect Length() == lengthBefore + 1;
     }
   }
+
+  // TODO-RS: Replace with `expect {:axiom} ...` when supported.
+  lemma {:axiom} Axiom(p: bool) ensures p
 }

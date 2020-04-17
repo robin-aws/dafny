@@ -45,6 +45,7 @@ module Collections {
     constructor() 
       ensures Valid()
       ensures values == []
+      ensures fresh(Repr)
     {
       data := new nat[10];
       length := 0;

@@ -15,25 +15,30 @@ module ExternalCollections {
       ensures Valid()
     {
       this.list := list;
-      this.Repr := {this};
+      this.Repr := {this, list} + list.Repr;
+      this.ValidatableRepr := {this};
     }
 
     predicate Valid() 
       reads this, Repr 
       ensures Valid() ==> this in Repr
-      ensures Valid() ==> forall v :: v in Repr ==> v.Repr <= Repr
-      ensures Valid() ==> forall v :: v in Repr && v != this ==> this !in v.Repr 
+      ensures Valid() ==> forall v :: v in ValidatableRepr ==> v.Repr <= Repr
+      ensures Valid() ==> forall v :: v in ValidatableRepr && v != this ==> this !in v.Repr 
     {
-      && Repr == {this}
+      && list in Repr
+      && Repr == {this, list} + list.Repr
+      && ValidatableRepr == {this}
+      && list.Repr <= Repr
       && list.Valid()
     }
 
     twostate lemma IndependentValidity()
       requires old(Valid())
-      requires unchanged(this)
-      requires forall v :: v in Repr && v != this ==> v.Valid()
+      requires unchanged(this, Repr - ValidatableRepr)
+      requires forall v :: v in ValidatableRepr && v != this ==> v.Valid()
       ensures Valid()
-    {}
+    {
+    }
   }
 
   trait {:extern} ExternalList {
@@ -82,8 +87,8 @@ module ExternalCollections {
     predicate Valid() 
       reads this, Repr 
       ensures Valid() ==> this in Repr
-      ensures Valid() ==> forall v :: v in Repr ==> v.Repr <= Repr
-      ensures Valid() ==> forall v :: v in Repr && v != this ==> this !in v.Repr
+      ensures Valid() ==> forall v :: v in ValidatableRepr ==> v.Repr <= Repr
+      ensures Valid() ==> forall v :: v in ValidatableRepr && v != this ==> this !in v.Repr
       ensures Valid() ==> ExtValid()
     {
       && wrapped in Repr
@@ -106,7 +111,7 @@ module ExternalCollections {
     twostate lemma IndependentValidity()
       requires old(Valid())
       requires unchanged(this)
-      requires forall v :: v in Repr && v != this ==> v.Valid()
+      requires forall v :: v in ValidatableRepr && v != this ==> v.Valid()
       ensures Valid() {
 
       }

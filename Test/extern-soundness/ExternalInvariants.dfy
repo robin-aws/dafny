@@ -2,12 +2,15 @@
 module ExternalInvariants {
 
   trait {:termination false} ExternallyValid {
-    ghost const Repr: set<ExternallyValid>
+    ghost const Repr: set<object>
+    ghost const ValidatableRepr: set<ExternallyValid>
     predicate Valid() 
       reads this, Repr 
-      ensures Valid() ==> this in Repr
-      ensures Valid() ==> forall v :: v in Repr ==> v.Repr <= Repr
-      ensures Valid() ==> forall v :: v in Repr && v != this ==> this !in v.Repr
+      ensures Valid() ==> 
+        && this in Repr
+        && ValidatableRepr <= Repr
+        && (forall v :: v in ValidatableRepr ==> v.Repr <= Repr)
+        && (forall v :: v in ValidatableRepr && v != this ==> this !in v.Repr)
     
     // Dummy predicate to avoid "/!\ No terms found to trigger on." warning
     predicate P() {
@@ -16,17 +19,17 @@ module ExternalInvariants {
 
     // Lemma for re-establishing the external invariant after one object
     // has changed from valid state to another valid state. Asserts that
-    // all OTHER formally valid objects are still valid based on their
+    // all OTHER previously valid objects are still valid based on their
     // IndependentValidity() lemma.
     twostate lemma AllStillValid() 
       requires old(AllValid(set v: ExternallyValid | allocated(v) && v.P()))
       requires Valid()
-      requires forall o :: o !in Repr ==> unchanged(o)
-      requires forall o :: o in Repr ==> o.Valid()
+      requires forall o :: o !in ValidatableRepr ==> unchanged(o)
+      requires forall o :: o in ValidatableRepr ==> o.Valid()
       ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
     {
       forall v: ExternallyValid | old(allocated(v)) && v.P() ensures v.Valid() {
-        IndependentValidityInductive(v, Repr);
+        IndependentValidityInductive(v, ValidatableRepr);
       }
     }
 
@@ -35,8 +38,8 @@ module ExternalInvariants {
     // in a compatible way.
     twostate lemma IndependentValidity()
       requires old(Valid())
-      requires unchanged(this)
-      requires forall v :: v in Repr && v != this ==> v.Valid()
+      requires unchanged(this, Repr - ValidatableRepr)
+      requires forall v :: v in ValidatableRepr && v != this ==> v.Valid()
       ensures Valid()
 
     // Slightly silly lemma that might go away if we tweak Dafny's heuristics a bit
@@ -44,18 +47,6 @@ module ExternalInvariants {
       requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
       ensures Valid()
     {}
-  }
-
-  // This is the "external invariant". It must hold as a precondition and postcondition for
-  // every method that crosses the Dafny/external boundary, either incoming or outgoing.
-  // It assumes that the Dafny heap cannot be changed in any other way.
-  // I have to pass in the set of objects implementing ExternallyValid since I can't pass in
-  // "the Dafny heap".
-  predicate AllValid(vs: set<ExternallyValid>) 
-    reads vs
-    reads set v, o | v in vs && o in v.Repr :: o
-  {
-    forall v :: v in vs ==> v.Valid()
   }
 
   twostate lemma IndependentValidityInductive(v: ExternallyValid, changed: set<ExternallyValid>)
@@ -67,7 +58,7 @@ module ExternalInvariants {
       ensures v.Valid()
   {
     assert old(v.Valid());
-    forall v': ExternallyValid | v' in v.Repr && v' != v && old(allocated(v')) ensures v'.Valid() {
+    forall v': ExternallyValid | v' in v.ValidatableRepr && v' != v && old(allocated(v')) ensures v'.Valid() {
       IndependentValidityInductive(v', changed);
     }
     if v !in changed {
@@ -75,140 +66,135 @@ module ExternalInvariants {
     }
   }
 
-  class NotAtomic extends ExternallyValid {
+  // This is the "external invariant". It must hold as a precondition and postcondition for
+  // every method that crosses the Dafny/external boundary, either incoming or outgoing.
+  // It assumes that the Dafny heap cannot be changed in any other way.
+  // I have to pass in the set of all objects implementing ExternallyValid since I can't pass in
+  // "the Dafny heap".
+  predicate AllValid(vs: set<ExternallyValid>) 
+    reads vs
+    reads set v, o | v in vs && o in v.Repr :: o
+  {
+    forall v :: v in vs ==> v.Valid()
+  }
 
-    var x: int
-    var y: int
+  // class NotAtomic {
 
-    constructor(x: int) 
-      ensures Valid() 
-      ensures fresh(Repr)
-      ensures forall o: ExternallyValid :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
-    {
-      this.x := x;
-      this.y := 2*x;
-      this.Repr := {this};
-    }
+  //   var x: int
+  //   var y: int
+  //   ghost const Repr: set<object>
+
+  //   constructor(x: int) 
+  //     ensures Valid() 
+  //     ensures fresh(Repr)
+  //   {
+  //     this.x := x;
+  //     this.y := 2*x;
+  //     this.Repr := {this};
+  //   }
     
-    predicate Valid() 
-      reads this, Repr 
-      ensures Valid() ==> this in Repr
-      ensures Valid() ==> forall v :: v in Repr ==> v.Repr <= Repr
-      ensures Valid() ==> forall v :: v in Repr && v != this ==> this !in v.Repr
-    {
-      && y == 2*x
-      && Repr == {this}
-    }
-    twostate lemma IndependentValidity()
-      requires old(Valid())
-      requires unchanged(this)
-      requires forall v :: v in Repr && v != this ==> v.Valid()
-      ensures Valid()
-    {
-    }
+  //   predicate Valid() 
+  //     reads this, Repr 
+  //     ensures Valid() ==> this in Repr
+  //   {
+  //     && y == 2*x
+  //     && Repr == {this}
+  //   }
 
-    method Update(x: int) 
-      requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
-      requires Valid() // Should follow automatically since this extends ExternallyValid but ¯\_(ツ)_/¯
-      modifies Repr
-      ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
-    {
-      this.x := x;
-      
-      // This is not allowed because the external invariant isn't re-established
-      // SomeOtherExternalMethod();
-      
-      // And this fails because `this` is not `ExtValid()` at this point
-      // AllStillValid();
-      
-      this.y := 2*x;
+  //   method Update(x: int) 
+  //     requires Valid() // Should follow automatically since this extends ExternallyValid but ¯\_(ツ)_/¯
+  //     modifies Repr
+  //     ensures Valid()
+  //   {
+  //     this.x := x;
+  //     this.y := 2*x;
+  //   }
+  // }
 
-      AllStillValid();
-      SomeOtherExternalMethod();
-    }
-  }
+  // trait {:extern} ExternalNotAtomic {
+  //   // TODO-RS: It may be possible to avoid the duplicate definitions of
+  //   // Valid() and Repr if this trait could extend ExternallyValid itself
+  //   predicate ExtValid() 
+  //     reads this, ExtRepr 
+  //     ensures ExtValid() ==> this in ExtRepr
+  //   ghost var ExtRepr: set<object>
 
-  trait {:extern} ExternalNotAtomic {
-    // TODO-RS: It may be possible to avoid the duplicate definitions of
-    // Valid() and Repr if this trait could extend ExternallyValid itself
-    predicate ExtValid() 
-      reads this, ExtRepr 
-      ensures ExtValid() ==> this in ExtRepr
-    ghost var ExtRepr: set<object>
+  //   method Update(x: int)
+  //     requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+  //     modifies ExtRepr
+  //     ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
+  // }
 
-    method Update(x: int)
-      requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
-      modifies ExtRepr
-      ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
-  }
+  // class AsExternalNotAtomic extends ExternalNotAtomic, ExternallyValid {
+  //   const wrapped: NotAtomic
+  //   predicate Valid() 
+  //     reads this, Repr 
+  //     ensures Valid() ==> this in Repr
+  //     ensures Valid() ==> forall v :: v in ValidatableRepr ==> v.Repr <= Repr
+  //     ensures Valid() ==> forall v :: v in ValidatableRepr && v != this ==> this !in v.Repr
+  //     ensures Valid() ==> ExtValid()
+  //   {
+  //     && wrapped in Repr
+  //     && Repr == {this} + wrapped.Repr
+  //     && wrapped.Valid()
+  //     && ExtRepr == Repr
+  //     && ExtValid()
+  //     && ValidatableRepr == {this}
+  //   }
 
-  class AsExternalNotAtomic extends ExternalNotAtomic, ExternallyValid {
-    const wrapped: NotAtomic
-    predicate Valid() 
-      reads this, Repr 
-      ensures Valid() ==> this in Repr
-      ensures Valid() ==> forall v :: v in Repr ==> v.Repr <= Repr
-      ensures Valid() ==> forall v :: v in Repr && v != this ==> this !in v.Repr
-      ensures Valid() ==> ExtValid()
-    {
-      && wrapped in Repr
-      && Repr == {this} + wrapped.Repr
-      && wrapped.Valid()
-      && ExtRepr == Repr
-      && ExtValid()
-    }
+  //   predicate ExtValid() 
+  //     reads this, ExtRepr 
+  //     ensures ExtValid() ==> this in ExtRepr
+  //   {
+  //     && wrapped in ExtRepr
+  //     && ExtRepr == {this} + wrapped.Repr
+  //     && wrapped.Valid()
+  //     && ExtRepr == Repr
+  //   }
 
-    predicate ExtValid() 
-      reads this, ExtRepr 
-      ensures ExtValid() ==> this in ExtRepr
-    {
-      && wrapped in ExtRepr
-      && ExtRepr == {this} + wrapped.Repr
-      && wrapped.Valid()
-      && ExtRepr == Repr
-    }
+  //   twostate lemma IndependentValidity()
+  //     requires old(Valid())
+  //     requires unchanged(this)
+  //     requires forall v :: v in ValidatableRepr && v != this ==> v.Valid()
+  //     ensures Valid()
+  //   {}
 
-    twostate lemma IndependentValidity()
-      requires old(Valid())
-      requires unchanged(this)
-      requires forall v :: v in Repr && v != this ==> v.Valid()
-      ensures Valid()
-    {}
+  //   constructor(wrapped: NotAtomic) 
+  //     requires wrapped.Valid() 
+  //     ensures Valid() 
+  //     ensures fresh(ExtRepr - wrapped.Repr)
+  //     ensures forall o: ExternallyValid :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
+  //   {
+  //     this.wrapped := wrapped;
+  //     this.ExtRepr := {this} + wrapped.Repr;
+  //     this.Repr := ExtRepr;
+  //     this.ValidatableRepr := {this};
+  //   }
+  //   method Update(x: int) 
+  //     requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+  //     modifies ExtRepr
+  //     ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
+  //   {
+  //     AllValidMakesMeValid();
+  //     wrapped.Update(x);
+  //     AllStillValid();
+  //   }
+  // }
 
-    constructor(wrapped: NotAtomic) 
-      requires wrapped.Valid() 
-      ensures Valid() 
-      ensures fresh(ExtRepr - wrapped.Repr)
-      ensures forall o: ExternallyValid :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
-    {
-      this.wrapped := wrapped;
-      this.ExtRepr := {this} + wrapped.Repr;
-      this.Repr := ExtRepr;
-    }
-    method Update(x: int) 
-      requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
-      modifies ExtRepr
-      ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
-    {
-      AllValidMakesMeValid();
-      wrapped.Update(x);
-    }
-  }
+  // method MakeExternalNotAtomic() returns (res: AsExternalNotAtomic)
+  //   ensures forall o: ExternallyValid :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
+  //   ensures res.Valid()
+  //   ensures fresh(res.ExtRepr)
+  // {
+  //   var internal := new NotAtomic(73);
+  //   res := new AsExternalNotAtomic(internal);
+  // }
 
-  method MakeExternalNotAtomic() returns (res: AsExternalNotAtomic)
-    ensures forall o: ExternallyValid :: allocated(o) && fresh(o) && o.P() ==> o.Valid()
-    ensures res.Valid()
-    ensures fresh(res.ExtRepr)
-  {
-    var internal := new NotAtomic(73);
-    res := new AsExternalNotAtomic(internal);
-  }
-
-  method SomeOtherExternalMethod() 
-    requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
-    ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
-  {
-    // Do some external stuff
-  }
+  // method SomeOtherExternalMethod() 
+  //   requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+  //   ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
+  // {
+  //   // Do some external stuff
+  // }
 }
 

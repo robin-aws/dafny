@@ -37,6 +37,8 @@ We should first distiguish between two different cases of linkage with external 
 
 In practice, it is difficult if not impossible to ensure that a method can be implemented in external code yet not invoked from external code. For example, it is natural for a Dafny code base to define a trait that is compiled to a C# interface, which can then be implemented using a C# class. There is nothing to stop other C# client code from creating this class and invoking its methods. In addition, there will be frequent use cases for methods that need to support both external invocation and native implementations anyway, such as the `List` example in this doc. Therefore, we propose focussing on this use case first. This is a two-way door: we can always support sound external-only or native-only methods in a future release of Dafny with looser restrictions, if this turns out to be strongly desired.
 
+(*** Only support external traits for simplicity: compiler verifies trait is well-formed when external, resolver verifies classes/datatypes implement the trait correctly ***)
+
 (*** CONNECT ***)
 
 Most issues can be addressed by forbidding all elements of Dafny method declarations that cannot be directly compiled to elements in the target language, as shown below.
@@ -93,6 +95,9 @@ exists p: bool ::
 ### Defining the External Invariant
 
 The question is now what
+
+
+* Any object that doesn't implement Validatable must be strictly owned by an object that does. Assumption is that any such object either hasn't changed or is in the ValidatableRepr of another object in scope.
 
 ### Disallow references to non-extern compiled elements
 

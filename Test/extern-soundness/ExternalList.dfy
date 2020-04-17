@@ -6,21 +6,61 @@ module ExternalCollections {
   import opened Collections
   import opened ExternalInvariants
 
+  class ValidatableList extends ExternallyValid {
+    
+    const list: List
+    
+    constructor(list: List) 
+      requires list.Valid()
+      ensures Valid()
+    {
+      this.list := list;
+      this.Repr := {this};
+    }
+
+    predicate Valid() 
+      reads this, Repr 
+      ensures Valid() ==> this in Repr
+      ensures Valid() ==> forall v :: v in Repr ==> v.Repr <= Repr
+      ensures Valid() ==> forall v :: v in Repr && v != this ==> this !in v.Repr 
+    {
+      && Repr == {this}
+      && list.Valid()
+    }
+
+    twostate lemma IndependentValidity()
+      requires old(Valid())
+      requires unchanged(this)
+      requires forall v :: v in Repr && v != this ==> v.Valid()
+      ensures Valid()
+    {}
+  }
+
   trait {:extern} ExternalList {
+
+    // TODO-RS: It may be possible to avoid the duplicate definitions of
+    // Valid() and Repr if this trait could extend ExternallyValid itself
+    predicate ExtValid() 
+      reads this, ExtRepr 
+      ensures ExtValid() ==> this in ExtRepr
+    ghost var ExtRepr: set<object>
 
     // TODO-RS: figure out how to enforce that this acts like a function
     function method Length(): int
     
     method Get(i: int) returns (res: int)
       requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+      modifies ExtRepr
       ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
     
     method Set(i: int, element: int)
       requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+      modifies ExtRepr
       ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
     
     method Add(element: int)
       requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+      modifies ExtRepr
       ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
   }
 
@@ -29,26 +69,39 @@ module ExternalCollections {
    */
   class AsExternalList extends ExternalList, ExternallyValid {
 
-    var wrapped: List
+    var wrapped: ValidatableList
 
     constructor(wrapped: List) 
       requires wrapped.Valid()
       ensures Valid()
     {
-      this.wrapped := wrapped;
+      this.wrapped := new ValidatableList(wrapped);
+      this.Repr := {this} + wrapped.Repr;
     }
 
-    predicate Valid()
-      reads this, wrapped.Repr
+    predicate Valid() 
+      reads this, Repr 
       ensures Valid() ==> this in Repr
+      ensures Valid() ==> forall v :: v in Repr ==> v.Repr <= Repr
+      ensures Valid() ==> forall v :: v in Repr && v != this ==> this !in v.Repr
+      ensures Valid() ==> ExtValid()
     {
+      && wrapped in Repr
       && Repr == {this} + wrapped.Repr
-      && wrapped in wrapped.Repr
-      && this !in wrapped.Repr
-      && wrapped.Repr <= Repr
       && wrapped.Valid()
+      && ExtRepr == Repr
+      && ExtValid()
     }
 
+    predicate ExtValid() 
+      reads this, ExtRepr 
+      ensures ExtValid() ==> this in ExtRepr
+    {
+      && wrapped in ExtRepr
+      && ExtRepr == {this} + wrapped.Repr
+      && wrapped.Valid()
+      && ExtRepr == Repr
+    }
 
     twostate lemma IndependentValidity()
       requires old(Valid())
@@ -59,18 +112,18 @@ module ExternalCollections {
       }
 
     function method Length(): int
-      requires Valid()
       reads Repr
     {
-      wrapped.Length()
+      wrapped.list.Length()
     }
     
     method Get(i: int) returns (res: int)
-      requires Valid()
-      decreases Repr
+      requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+      ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
     {
-      expect 0 <= i < wrapped.Length();
-      res := wrapped.Get(i);
+      AllValidMakesMeValid();
+      expect 0 <= i < wrapped.list.Length();
+      res := wrapped.list.Get(i);
     }
     
     method Set(i: int, element: int)
@@ -80,20 +133,20 @@ module ExternalCollections {
       ensures Valid()
       ensures fresh(Repr - old(Repr))
     {
-      expect 0 <= i < wrapped.Length();
+      expect 0 <= i < wrapped.list.Length();
       expect 0 <= element;
-      wrapped.Set(i, element);
+      wrapped.list.Set(i, element);
     }
     
     method Add(element: int)
-      requires Valid()
-      modifies Repr
-      decreases Repr
-      ensures Valid()
+      requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
+      modifies ExtRepr
+      ensures AllValid(set v: ExternallyValid | allocated(v) && v.P())
       ensures fresh(Repr - old(Repr))
     {
+      AllValidMakesMeValid();
       expect 0 <= element;
-      wrapped.Add(element);
+      wrapped.list.Add(element);
     }
   }
 
@@ -116,6 +169,7 @@ module ExternalCollections {
       ensures Valid() ==> this in Repr 
     {
       && Repr == {this}
+      && wrapped.ExtValid()
     }
 
     function method Length(): nat
@@ -127,8 +181,7 @@ module ExternalCollections {
       // TODO-RS: Ideally we would include `expect result >= 0;`, but
       // we can't currently do that in a function, even though we really want that in
       // the compiled version.
-      // TODO-RS: Replace with `expect {:axiom} ...` when supported.
-      assume result == |values|;
+      Axiom(result == |values|);
       result
     }
     

@@ -96,9 +96,7 @@ The question is now what
 
 ### Disallow references to non-extern compiled elements
 
-### Disallow unsound elements on external methods
-
-### 
+### Supports traits extending other traits
 
 ## One-Way Doors
 

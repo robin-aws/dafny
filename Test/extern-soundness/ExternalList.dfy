@@ -39,7 +39,9 @@ module ExternalCollections {
     ghost var ExtRepr: set<object>
 
     // TODO-RS: figure out how to enforce that this acts like a function
-    function method Length(): int
+    function method Length(): int 
+      requires ExtValid()
+      reads ExtRepr
     
     method Get(i: int) returns (res: int)
       requires AllValid(set v: ExternallyValid | allocated(v) && v.P())
@@ -96,6 +98,7 @@ module ExternalCollections {
     }
 
     function method Length(): int
+      requires Valid()
       reads Repr
     {
       wrapped.list.Length()
@@ -174,12 +177,15 @@ module ExternalCollections {
       requires 0 <= i < Length()
       modifies Repr
       decreases Repr
+      ensures Valid()
+      ensures Length() == old(Length())
       ensures res == values[i]
     {
       var result := wrapped.Get(i);
       expect 0 <= result;
       res := result;
       
+      Axiom(Length() == old(Length()));
       Axiom(res == values[i]);
     }
     

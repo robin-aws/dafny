@@ -123,11 +123,11 @@ Options:
 
 1. **Discourage references to non-extern compiled elements**. The motivation here is to ensure external code does not interact with any part of the Dafny-generated code that has not been validated as safe to expose externally. This is critical to ensure the above assumption that the set of Dafny objects does not change outside of Dafny source code, and to ensure that external code cannot intentionally or accidentally call or implement methods that were not verified as safe for external use.
    
-   Ideally, the compiler would attach access control to non-external elements so this is enforced by the target language compiler and/or runtime. This would prevent Dafny-generated code in one package from referencing Dafny-generated code in another, however, which is a long-term goal. Therefore, we will instead intentionally munge the identifiers generated for non-external elements to discourage external references. This will likely involve appending something like `__DAFNY_INTERNAL__` to these identifiers.
+   Ideally, the compiler would attach access control to non-external elements so this is enforced by the target language compiler and/or runtime. This would prevent Dafny-generated code in one package from referencing Dafny-generated code in another, however, which is a long-term goal. Therefore, we should instead intentionally munge the identifiers generated for non-external elements to discourage external references. This will likely involve appending something like `__DAFNY_INTERNAL__` to these identifiers.
 
 1. **Support traits extending other traits**. This seems to be necessary in practice, so that a trait such as `ExternalList` can in turn extend a generic trait like `Validatable`. Working around the lack of this feature is very difficult, since both types want to reference ghost state such as `Repr`.
 
-2. **Support singleton objects**. This would allow statically-referencable state in Dafny programs. It has some of the same challenges around non-local invariants.
+2. **Support singleton objects**. This would allow statically-referencable state in Dafny programs. It has some of the same challenges around non-local invariants, and may enable a more useful external invariant by tracking the set of externally-referencable objects as a static variable.
 
 ## One-Way Doors
 

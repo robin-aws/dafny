@@ -1,5 +1,5 @@
 include "./List.dfy"
-include "./ExternalInvariantsDisjoint.dfy"
+include "./ExternalInvariants.dfy"
 
 module ExternalCollections {
 

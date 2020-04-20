@@ -1,5 +1,5 @@
 
-module {:extern "DafnyCollections"} DafnyCollections {
+module {:extern "DafnyCollections"} Collections {
 
   trait {:extern} {:termination false} List {
     predicate Valid()

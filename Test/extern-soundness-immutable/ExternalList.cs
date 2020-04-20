@@ -21,7 +21,7 @@ module {:extern ""DafnyCollections""} ExternalCollections {
     function method Length(): uint64
       requires Valid()
 
-    method Get(i: uint64) returns (res: uint64)
+    method Get(i: uint64) returns (res: uint8)
       requires Valid()
       ensures Valid()
       decreases i
@@ -56,7 +56,7 @@ module {:extern ""DafnyCollections""} ExternalCollections {
       wrapped.Length()
     }
 
-    method Get(i: uint64) returns (res: uint64)
+    method Get(i: uint64) returns (res: uint8)
       decreases i
     {
       expect wrapped != null, ""expectation violation""
@@ -93,7 +93,7 @@ module {:extern ""DafnyCollections""} ExternalCollections {
       result
     }
 
-    method Get(i: uint64) returns (res: uint64)
+    method Get(i: uint64) returns (res: uint8)
       requires Valid()
       requires 0 <= i < Length()
       ensures Valid()
@@ -113,23 +113,23 @@ module {:extern ""DafnyCollections""} ExternalCollections {
 }
 
 module Collections {
-  newtype uint8 = x: int
-    | 0 <= x < twoToThe8
+  newtype {:nativeType ""byte""} uint8 = x: int
+    | 0 <= x < 256
 
-  newtype uint64 = x: int
-    | 0 <= x < twoToThe64
+  newtype {:nativeType ""ulong""} uint64 = x: int
+    | 0 <= x < 18446744073709551616
 
   trait {:termination false} List {
     predicate Valid()
       ensures Valid() ==> |values| < twoToThe64
 
-    ghost const values: seq<uint64>
+    ghost const values: seq<uint8>
 
     function method Length(): uint64
       requires Valid()
       ensures Length() == |values| as uint64
 
-    method Get(i: uint64) returns (res: uint64)
+    method Get(i: uint64) returns (res: uint8)
       requires Valid()
       requires 0 <= i < Length()
       ensures res == values[i]
@@ -137,9 +137,9 @@ module Collections {
   }
 
   class SequenceList extends List {
-    const data: seq<uint64>
+    const data: seq<uint8>
 
-    constructor (s: seq<uint64>)
+    constructor (s: seq<uint8>)
       requires |s| < twoToThe64
       ensures Valid()
       ensures Length() == |s| as uint64
@@ -163,7 +163,7 @@ module Collections {
       |data| as uint64
     }
 
-    method Get(i: uint64) returns (res: uint64)
+    method Get(i: uint64) returns (res: uint8)
       requires Valid()
       requires 0 <= i < Length()
       ensures res == values[i]
@@ -1631,35 +1631,41 @@ namespace _System {
 namespace Collections_Compile {
 
   public partial class uint8 {
+    public static System.Collections.Generic.IEnumerable<byte> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (byte)j; }
+    }
   }
 
   public partial class uint64 {
+    public static System.Collections.Generic.IEnumerable<ulong> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (ulong)j; }
+    }
   }
 
   public interface List {
-    BigInteger Length();
-    BigInteger Get(BigInteger i);
+    ulong Length();
+    byte Get(ulong i);
   }
   public class _Companion_List {
   }
 
   public partial class SequenceList : Collections_Compile.List {
-    public void __ctor(Dafny.ISequence<BigInteger> s)
+    public void __ctor(Dafny.ISequence<byte> s)
     {
       (this)._data = s;
       { }
     }
-    public BigInteger Length() {
-      return new BigInteger(((this).data).Count);
+    public ulong Length() {
+      return (ulong)((this).data).LongCount;
     }
-    public BigInteger Get(BigInteger i)
+    public byte Get(ulong i)
     {
-      BigInteger res = BigInteger.Zero;
+      byte res = 0;
       res = ((this).data).Select(i);
       return res;
     }
-    public Dafny.ISequence<BigInteger> _data = Dafny.Sequence<BigInteger>.Empty;
-    public Dafny.ISequence<BigInteger> data { get {
+    public Dafny.ISequence<byte> _data = Dafny.Sequence<byte>.Empty;
+    public Dafny.ISequence<byte> data { get {
       return this._data;
     } }
   }
@@ -1677,8 +1683,8 @@ namespace DafnyCollections {
 
 
   public interface List {
-    BigInteger Length();
-    BigInteger Get(BigInteger i);
+    ulong Length();
+    byte Get(ulong i);
   }
   public class _Companion_List {
   }
@@ -1694,19 +1700,19 @@ namespace DafnyCollections {
     {
       (this)._wrapped = wrapped;
     }
-    public BigInteger Length() {
+    public ulong Length() {
       return ((this).wrapped).Length();
     }
-    public BigInteger Get(BigInteger i)
+    public byte Get(ulong i)
     {
-      BigInteger res = BigInteger.Zero;
+      byte res = 0;
       if (!(((this).wrapped) != (object) ((Collections_Compile.List)null))) {
         throw new Dafny.HaltException(Dafny.Sequence<char>.FromString("expectation violation"));
       }
-      if (!(((i).Sign != -1) && ((i) < (((this).wrapped).Length())))) {
+      if (!(((0UL) <= (i)) && ((i) < (((this).wrapped).Length())))) {
         throw new Dafny.HaltException(Dafny.Sequence<char>.FromString("expectation violation"));
       }
-      BigInteger _out0;
+      byte _out0;
       var _outcollector0 = ((this).wrapped).Get(i);
       _out0 = _outcollector0;
       res = _out0;
@@ -1723,14 +1729,14 @@ namespace DafnyCollections {
     {
       (this)._wrapped = wrapped;
     }
-    public BigInteger Length() {
-      BigInteger _38_result = ((this).wrapped).Length();
+    public ulong Length() {
+      ulong _38_result = ((this).wrapped).Length();
       return _38_result;
     }
-    public BigInteger Get(BigInteger i)
+    public byte Get(ulong i)
     {
-      BigInteger res = BigInteger.Zero;
-      BigInteger _out1;
+      byte res = 0;
+      byte _out1;
       var _outcollector1 = ((this).wrapped).Get(i);
       _out1 = _outcollector1;
       res = _out1;

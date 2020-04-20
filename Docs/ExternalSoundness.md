@@ -18,11 +18,34 @@ Note that this problem is not unique to the ESDK, and I intend to present a larg
 1. The errors we provide to customers when their code violates requirements should be as clear as possible, ideally allowing them to understand the error by only referring to the target language API documentation and not the underlying Dafny source code.
 1. (Nice to have) We would be happier with a solution that allows us to separate Dafny and target language source code cleanly, such that the latter can be developed, tested and built with standard tooling for each language.
 
+This document uses a "List" datatype as a running example for the various requirements and options. It is a generalization of the `seq<T>` built-in Dafny datatype, supporting values that may exist on the heap. The initial definition below assumes it is immutable, although we will consider the implications of allowing mutation later on. It uses a 64-bit integer for length and a 8-bit integer for values, to provide common concrete types for external implementations.
+
+```dafny
+const twoToThe8 := 0x1_00
+newtype uint8 = x | 0 <= x < twoToThe8
+
+const twoToThe64 := 0x1_0000_0000_0000_0000
+newtype uint64 = x | 0 <= x < twoToThe64
+
+trait List {
+  ghost const values: seq<uint8>
+  predicate Valid()
+    ensures Valid() ==> |values| < twoToThe64
+
+  function method Length(): uint64
+    requires Valid()
+    ensures Length() == |values| as uint64
+  
+  method Get(i: uint64) returns (res: uint8)
+    requires Valid()
+    requires 0 <= i < Length()
+    ensures res == values[i]
+}
+```
+
 ## Out of Scope
 
-*
-*
-*
+It has actually been difficult to exclude any issues as out-of-scope, because this is such a widely cross-cutting concern.
 
 ## Issues and Alternatives
 
@@ -36,29 +59,19 @@ We should first distiguish between two different use cases for linkage with exte
 In practice, it is difficult if not impossible to ensure that a method can be implemented in external code yet not invoked from external code. For example, it is natural for a Dafny code base to define a trait that is compiled to a C# interface, which can then be implemented using a C# class. There is nothing to stop other C# client code from creating this class and invoking its methods. In addition, there will be frequent use cases for methods that need to support both external invocation and native implementations anyway, such as the `List` example in this doc. Therefore, we propose focussing on this use case first. This is a two-way door: we can always support sound external-only or native-only methods in a future release of Dafny with looser restrictions, if this turns out to be strongly desired.
 
 
-(*** Only support external traits for simplicity: compiler verifies trait is well-formed when external, resolver verifies classes/datatypes implement the trait correctly ***)
+Most soundness issues can be addressed by forbidding all elements of Dafny method declarations that cannot be directly compiled to elements in the target language, as shown below. For all these constraints, we can take the approach of applying them to the ESDK code base while in parallel modifying the Dafny compiler to enforce them.
 
-(*** CONNECT ***)
+1. **Disallow types not directly supported by the target language/runtime**. This includes not only most subtypes but also `newtype` declarations that do not match a built-in type such as `int` exactly. Allowing a bounded type such as `newtype MyType = x | -100 <= x < 0x8000_0000` that compiles to a type such as `int` still introduces unsoundness, since external code could return `-1000`.
 
-Most issues can be addressed by forbidding all elements of Dafny method declarations that cannot be directly compiled to elements in the target language, as shown below.
+2. **Require all reference types used as in or out parameters are nullable (i.e. `Foo?` rather than just `Foo`)**. This is a corrolary of the previous statement, since many reference types in Dafny source code are implicitly non-null subtypes.
 
-### Disallow types not directly supports by the target language/runtime
+3. **Disallow almost all preconditions and postconditions.** The biggest threat to soundness is that most Dafny guarantees are checked statically. A fundamental feature of Dafny is pre- and post-conditions, expressed using `requires` and `ensures` declarations respectively. Currently, external methods may be invoked without necessarily satisfying their pre-conditions ([#461](https://github.com/dafny-lang/dafny/issues/461)) and the implementation of native methods may not necessarily satisfy their post-conditions ([#463](https://github.com/dafny-lang/dafny/issues/461)).
 
-This includes not only most subtypes but also `newtype` declarations that do not match a built-in type such as `int` exactly. Allowing a bounded type such as `newtype MyType = x | -100 <= x < 0x8000_0000` that compiles to a type such as `int` still introduces unsoundness, since external code could return `-1000`.
 
-### Require all reference types used as in or out parameters are nullable (i.e. `Foo?` rather than just `Foo`).
-
-This is a corrolary of the previous statement, since many reference types in Dafny source code are implicitly non-null subtypes.
-
-### Disallow almost all preconditions and postconditions.
-
-The attentive reader will likely be surprised by the "almost" in the title of this section.
-
-The biggest threat to soundness is that most Dafny guarantees are checked statically. A fundamental feature of Dafny is pre- and post-conditions, expressed using `requires` and `ensures` declarations respectively. Currently, external methods may be invoked without necessarily satisfying their pre-conditions ([#461](https://github.com/dafny-lang/dafny/issues/461)) and the implementation of native methods may not necessarily satisfy their post-conditions ([#463](https://github.com/dafny-lang/dafny/issues/461)).
 
 ### External Invariants
 
-Many other programming languages ensure object invariants through a combination of access control (making fields private so that all access and mutation happens only within a bounded set of methods) and concurrency control (to ensure only one thread can ever observe an object in an invalid state at one time). This ensures that objects are valid by default. Dafny instead approaches this by validating that any operation that requires an object to be valid (which in practice is nearly all of them) provides proof that this is true, based on the context of the operation. Thus Dafny objects are assumed invalid unless proven valid.
+The attentive reader will likely be surprised by the "almost" from rule #3 in the previous section. Many other programming languages ensure object invariants through a combination of access control (making fields private so that all access and mutation happens only within a bounded set of methods) and concurrency control (to ensure only one thread can ever observe an object in an invalid state at one time). This ensures that objects are valid by default. Dafny instead approaches this by validating that any operation that requires an object to be valid (which in practice is nearly all of them) provides proof that this is true, based on the context of the operation. Thus Dafny objects are assumed invalid unless proven valid.
 
 Because of this, disallowing all preconditions on external methods is extremely limiting: it means that absolutely nothing can be assumed about any Dafny objects in the control flow of external methods. It is often not possible to dynamically verify a predicate such as `Valid()` since it usually refers to ghost state, and even if it was possible would often be prohibitively expensive. It is also dangerous, however, to allow external methods to assume objects are in a `Valid()` state without proof, for the same reasons that we cannot allow stray `null` values to pollute the Dafny runtime.
 
@@ -91,7 +104,7 @@ exists p: bool ::
 
 ### Defining the External Invariant
 
-The question is now what
+The question is now what to pick as the external invariant. Ideally this could be improved over time as Dafny's completeness improves over time.
 
 Options:
 
@@ -106,31 +119,25 @@ Options:
 * Any object that doesn't implement Validatable must be strictly owned by an object that does. Assumption is that any such object either hasn't changed or is in the ValidatableRepr of another object in scope.
 * Allow a subobject with a changing Repr iff you are the one making the change and can update your own Repr
 
-### Discourage references to non-extern compiled elements
+### Other helpful Dafny features
 
-The motivation here is to ensure external code does not interact with any part of the Dafny-generated code that has not been validated as safe to expose externally. This is critical to ensure the above assumption that the set of Dafny objects does not change outside of Dafny source code, and to ensure that external code cannot intentionally or accidentally call or implement methods that were not verified as safe for external use.
+1. **Discourage references to non-extern compiled elements**. The motivation here is to ensure external code does not interact with any part of the Dafny-generated code that has not been validated as safe to expose externally. This is critical to ensure the above assumption that the set of Dafny objects does not change outside of Dafny source code, and to ensure that external code cannot intentionally or accidentally call or implement methods that were not verified as safe for external use.
+   
+   Ideally, the compiler would attach access control to non-external elements so this is enforced by the target language compiler and/or runtime. This would prevent Dafny-generated code in one package from referencing Dafny-generated code in another, however, which is a long-term goal. Therefore, we will instead intentionally munge the identifiers generated for non-external elements to discourage external references. This will likely involve appending something like `__DAFNY_INTERNAL__` to these identifiers.
 
-Ideally, the compiler would attach access control to non-external elements so this is enforced by the target language compiler and/or runtime. This would prevent Dafny-generated code in one package from referencing Dafny-generated code in another, however, which is a long-term goal. Therefore, we will instead intentionally munge the identifiers generated for non-external elements to discourage external references. This will likely involve appending something like `__DAFNY_INTERNAL__` to these identifiers.
+1. **Support traits extending other traits**. This seems to be necessary in practice, so that a trait such as `ExternalList` can in turn extend a generic trait like `Validatable`. Working around the lack of this feature is very difficult, since both types want to reference ghost state such as `Repr`.
 
-
-
-### Support traits extending other traits
+2. **Support singleton objects**. This would allow statically-referencable state in Dafny programs. It has some of the same challenges around non-local invariants.
 
 ## One-Way Doors
 
 There are two major categories of one-way doors, corresponding to the two aspects that are the most difficult to modify: the public API of the ESDK implementations we release and the semantics of the Dafny language itself.
 
-## Impact
-
-## Assumptions
+The key priority is to expose an initial C# API that will meet customer's needs without committing to patterns of use we do not want to support in the future. This will likely mean ensuring all non-trivial types are exposed as only interfaces, and using factory methods rather than constructors.
 
 ## Open Questions
 
-* (make new version of :extern or whatever on by default in Dafny 3.0?)
-* (Termination??)
+* Can we enforce that traits are the ONLY way to specify exposed or native methods for simplicity? This would require singleton objects in other to implement exposed static methods, such as factory methods.
+* Can we/should we change the rules around :extern by default in Dafny 3.0, or should we introduce new keywords/attributes?
+* I've largely skipped over termination proofs here. We will have to accept some measure of unsoundness here since external code cannot be analyzed, but we also don't want to give up and use `decreases *` across the whole ESDK code base. Can we find a middle-ground that allows for partial termination proof of the Dafny code, possibly looking something like `decreases Repr, *`?
 
-## Appendices
-
-*Note*: applying invariant to input values of external methods. Pro of straight quantification approach.
-
-## Singleton objects

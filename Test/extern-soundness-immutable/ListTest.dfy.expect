@@ -1,0 +1,7 @@
+
+Dafny program verifier finished with 1 verified, 0 errors
+list.Length() = 5
+list.Get(0) = 1
+list.Get(2) = 3
+list.Get(4) = 5
+Sum(list) = 15

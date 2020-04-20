@@ -11,7 +11,7 @@ module {:extern "DafnyCollections"} ExternalCollections {
     function method Length(): uint64 
       requires Valid()
     
-    method Get(i: uint64) returns (res: uint64)
+    method Get(i: uint64) returns (res: uint8)
       requires Valid()
       ensures Valid()
   }
@@ -45,7 +45,7 @@ module {:extern "DafnyCollections"} ExternalCollections {
       wrapped.Length()
     }
     
-    method Get(i: uint64) returns (res: uint64)
+    method Get(i: uint64) returns (res: uint8)
     {
       expect wrapped != null;
       expect 0 <= i < wrapped.Length();
@@ -87,7 +87,7 @@ module {:extern "DafnyCollections"} ExternalCollections {
       result
     }
     
-    method Get(i: uint64) returns (res: uint64)
+    method Get(i: uint64) returns (res: uint8)
       requires Valid()
       requires 0 <= i < Length()
       ensures Valid()

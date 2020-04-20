@@ -13,7 +13,7 @@ namespace Collections {
       return left.Length() + right.Length();
     }
     
-    public ulong Get(ulong i) {
+    public byte Get(ulong i) {
       if (i < left.Length()) {
         return left.Get(i);
       } else {

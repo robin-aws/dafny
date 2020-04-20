@@ -2,21 +2,21 @@
 module Collections {
 
   const twoToThe8 := 0x1_00
-  newtype uint8 = x | 0 <= x < twoToThe8
+  newtype {:nativeType "byte"} uint8 = x | 0 <= x < 0x1_00
   const twoToThe64 := 0x1_0000_0000_0000_0000
-  newtype uint64 = x | 0 <= x < twoToThe64
+  newtype {:nativeType "ulong"} uint64 = x | 0 <= x < 0x1_0000_0000_0000_0000
 
   trait {:termination false} List {
     predicate Valid()
       ensures Valid() ==> |values| < twoToThe64
 
-    ghost const values: seq<uint64>
+    ghost const values: seq<uint8>
 
     function method Length(): uint64
       requires Valid()
       ensures Length() == |values| as uint64
     
-    method Get(i: uint64) returns (res: uint64)
+    method Get(i: uint64) returns (res: uint8)
       requires Valid()
       requires 0 <= i < Length()
       ensures res == values[i]
@@ -24,9 +24,9 @@ module Collections {
 
   class SequenceList extends List {
 
-    const data: seq<uint64>
+    const data: seq<uint8>
 
-    constructor(s: seq<uint64>) 
+    constructor(s: seq<uint8>) 
       requires |s| < twoToThe64
       ensures Valid()
       ensures Length() == |s| as uint64
@@ -49,7 +49,7 @@ module Collections {
       |data| as uint64
     }
     
-    method Get(i: uint64) returns (res: uint64)
+    method Get(i: uint64) returns (res: uint8)
       requires Valid()
       requires 0 <= i < Length()
       ensures res == values[i]

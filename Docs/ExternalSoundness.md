@@ -8,10 +8,12 @@ This is somewhat uncharted territory for Dafny: it has excelled for years at ver
 
 The impact of unsoundness becomes severe in this case. If a Dafny method declares a parameter of type `Foo`, for example, where `Foo` is a Dafny class, then Dafny will not allow passing a `null` value as an argument. Once this method is compiled to a target language such as C#, however, C# will allow `null` to be passed. This can lead to errors and undefined behaviour deep within the Dafny runtime, potentially far from the source of the error if the `null` value is stored and referenced at a later time. These issues will lead to a bad customer experience as it will not be clear that their code is at fault, which in turn will lead to increased operational load for our team in order to support such customers. It also undermines customer trust to tout the advantages of applying formal verification to our code base, only to ship bugs in the shim code.
 
+Note that this problem is not unique to the ESDK, and I intend to present a large subset of this design to the Dafny community in the form of one or more RFCs, in order to motivate the Dafny changes that will be necessary to support this solutino.
+
 ## Requirements
 
 1. The Dafny compiler should reject unsound programs involving external declarations by default as much as possible.
-1. It must be possible to attach unproven assumptions to external code. The fact that these assumptions are unproven shoudl be as explicit as possible, to aid in understanding and tracking potential technical debt.
+1. It must be possible to attach unproven assumptions to external code. The fact that these assumptions are unproven should be as explicit as possible, to aid in understanding and tracking potential technical debt.
 1. We should aim to minimize the amount of manual shim code we have to write in each target language, as this directly affects the scalability of our approach.
 1. The errors we provide to customers when their code violates requirements should be as clear as possible, ideally allowing them to understand the error by only referring to the target language API documentation and not the underlying Dafny source code.
 1. (Nice to have) We would be happier with a solution that allows us to separate Dafny and target language source code cleanly, such that the latter can be developed, tested and built with standard tooling for each language.
@@ -94,8 +96,10 @@ The question is now what
 Options:
 
 * invariant = `true`, all objects immutable
+
 * invariant = `forall v: Validatable :: v.Valid()`
   * Requires proving that if one object changes to another valid state, all other previously valid objects are still valid
+
 * invariant = `forall v: Validatable :: v.Valid() && forall v': Validatable :: v != v' ==> v.Repr !! v'.Repr`
 
 
@@ -104,7 +108,7 @@ Options:
 
 ### Discourage references to non-extern compiled elements
 
-The motivation here is to ensure external code does not interact with any part of the Dafny-generated code that has not been validated as safe to expose externally. This is critical to ensure the above assumption that the set of Dafny objects does not change outside of Dafny source code.
+The motivation here is to ensure external code does not interact with any part of the Dafny-generated code that has not been validated as safe to expose externally. This is critical to ensure the above assumption that the set of Dafny objects does not change outside of Dafny source code, and to ensure that external code cannot intentionally or accidentally call or implement methods that were not verified as safe for external use.
 
 Ideally, the compiler would attach access control to non-external elements so this is enforced by the target language compiler and/or runtime. This would prevent Dafny-generated code in one package from referencing Dafny-generated code in another, however, which is a long-term goal. Therefore, we will instead intentionally munge the identifiers generated for non-external elements to discourage external references. This will likely involve appending something like `__DAFNY_INTERNAL__` to these identifiers.
 

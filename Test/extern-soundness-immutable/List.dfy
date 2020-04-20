@@ -1,134 +1,112 @@
 
 module Collections {
 
+  const twoToThe8 := 0x1_00
+  newtype uint8 = x | 0 <= x < twoToThe8
+  const twoToThe64 := 0x1_0000_0000_0000_0000
+  newtype uint64 = x | 0 <= x < twoToThe64
+
   trait {:termination false} List {
     predicate Valid()
-      reads this, Repr
-      ensures Valid() ==> this in Repr
-    ghost var Repr: set<object>
-    ghost var values: seq<nat>
+      ensures Valid() ==> |values| < twoToThe64
 
-    function method Length(): nat
+    ghost const values: seq<uint64>
+
+    function method Length(): uint64
       requires Valid()
-      reads this, Repr
-      ensures Length() == |values|
+      ensures Length() == |values| as uint64
     
-    method Get(i: int) returns (res: nat)
+    method Get(i: uint64) returns (res: uint64)
       requires Valid()
       requires 0 <= i < Length()
-      decreases Repr
       ensures res == values[i]
-    
-    method Set(i: int, element: nat)
-      requires Valid()
-      requires 0 <= i < Length()
-      decreases Repr
-      modifies Repr
-      ensures Valid()
-      ensures values == old(values[..i]) + [element] + old(values[i + 1..])
-      ensures fresh(Repr - old(Repr))
-      
-    method Add(element: nat)
-      requires Valid()
-      decreases Repr
-      modifies Repr
-      ensures Valid()
-      ensures values == old(values) + [element]
-      ensures fresh(Repr - old(Repr))
   }
 
-  class ArrayList extends List {
+  class SequenceList extends List {
 
-    var data: array<nat>
-    var length: nat
+    const data: seq<uint64>
 
-    constructor() 
+    constructor(s: seq<uint64>) 
+      requires |s| < twoToThe64
       ensures Valid()
-      ensures values == []
-      ensures fresh(Repr)
+      ensures Length() == |s| as uint64
     {
-      data := new nat[10];
-      length := 0;
-
-      values := [];
-      Repr := {this, data};
+      data := s;
+      values := s;
     }
 
-    predicate Valid()
-      reads this, Repr
-      ensures Valid() ==> this in Repr
+    predicate Valid() 
+      ensures Valid() ==> |values| < twoToThe64
     {
-      && Repr == {this, data}
-      && 0 < data.Length
-      && 0 <= length <= data.Length
-      && values == data[..length]
+      && data == values 
+      && |values| < twoToThe64
     }
 
-    function method Length(): nat
+    function method Length(): uint64
       requires Valid()
-      reads this, Repr
-      ensures Length() == |values|
+      ensures Length() == |values| as uint64
     {
-      length
+      |data| as uint64
     }
     
-    method Get(i: int) returns (res: nat)
+    method Get(i: uint64) returns (res: uint64)
       requires Valid()
       requires 0 <= i < Length()
-      decreases Repr
       ensures res == values[i]
     {
       res := data[i];
     }
-
-    method Set(i: int, element: nat)
-      requires Valid()
-      requires 0 <= i < Length()
-      decreases Repr
-      modifies Repr
-      ensures Valid()
-      ensures fresh(Repr - old(Repr))
-      ensures values == old(values[..i]) + [element] + old(values[i + 1..])
-    {
-      data[i] := element;
-
-      values := values[..i] + [element] + values[i + 1..];
-    }
-
-    method Add(element: nat)
-      requires Valid()
-      decreases Repr
-      modifies Repr
-      ensures Valid()
-      ensures values == old(values) + [element]
-      ensures fresh(Repr - old(Repr))
-    {
-      if length == data.Length {
-        Grow();
-      }
-      data[length] := element;
-      length := length + 1;
-
-      values := values + [element];
-    }
-
-    method Grow() 
-      requires Valid()
-      modifies Repr
-      ensures length < data.Length
-      ensures fresh(data)
-      ensures unchanged(`length)
-      ensures values == old(values)
-      ensures Valid()
-    {
-      var oldSize := data.Length;
-      var newData := new nat[2 * data.Length];
-      forall i | 0 <= i < oldSize {
-        newData[i] := data[i];
-      }
-      data := newData;
-      
-      Repr := {this, data};
-    }
   }
+
+  // This doesn't work because you can't prove termination 
+  // in the presence of recursive calls but no Repr
+
+  // class ConcatList extends List {
+
+  //   const left: List
+  //   const right: List
+
+  //   constructor(left: List, right: List) 
+  //     requires left.Valid()
+  //     requires right.Valid()
+  //     ensures Valid()
+  //   {
+  //     this.left := left;
+  //     this.right := right;
+  //     values := left.values + right.values;
+  //     Repr := {this} + left.Repr + right.Repr;
+  //   }
+
+  //   predicate Valid() 
+  //     ensures Valid() ==> |values| < twoToThe64
+  //   {
+  //     && left in Repr
+  //     && this !in left.Repr
+  //     && left.Repr <= Repr
+  //     && left.Valid() 
+  //     && right in Repr
+  //     && right.Valid()
+  //   }
+
+  //   function method Length(): uint64
+  //     requires Valid()
+  //     reads Repr
+  //     ensures Length() == |values| as uint64
+  //   {
+  //     left.Length() + right.Length()
+  //   }
+    
+  //   method Get(i: uint64) returns (res: uint64)
+  //     requires Valid()
+  //     requires 0 <= i < Length()
+  //     decreases Repr 
+  //     ensures res == values[i]
+  //   {
+  //     if i < left.Length() {
+  //       res := left.Get(i);
+  //     } else {
+  //       res := right.Get(i);
+  //     }
+  //   }
+  // }
 }

@@ -1,7 +1,7 @@
 
-module Collections {
+module {:extern "DafnyCollections"} DafnyCollections {
 
-  trait {:termination false} List {
+  trait {:extern} {:termination false} List {
     predicate Valid()
       reads this, Repr
       ensures Valid() ==> this in Repr

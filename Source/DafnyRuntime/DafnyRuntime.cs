@@ -917,6 +917,37 @@ namespace Dafny
       return ansBuilder.ToImmutable();
     }
   }
+
+  public class StringSequence : Sequence<int> {
+    private readonly String str;
+    
+    private ImmutableArray<Int32> ComputeElements() {
+      var codePoints = ImmutableArray.CreateBuilder<Int32>(str.Length);
+      for (int index = 0; index < str.Length; index++)
+      {
+        codePoints.Add(Char.ConvertToUtf32(str, index));
+        if (Char.IsHighSurrogate(str[index])) {
+          index += 1;
+        }
+      }
+
+      return codePoints.ToImmutable();
+    }
+
+
+    public override int Count {
+      get {
+        return ComputeElements().Length;
+      }
+    }
+
+    protected override ImmutableArray<int> ImmutableElements {
+      get {
+        return ComputeElements();
+      }
+    }
+  }
+  
   public struct Pair<A, B>
   {
     public readonly A Car;

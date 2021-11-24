@@ -24,18 +24,25 @@ namespace Microsoft.Dafny {
   /// </summary>
   public static class BoogieXmlConvertor {
 
-    public static void RaiseTestLoggerEvents(string fileName, string loggerConfig) {
-      // The only supported value for now
-      if (loggerConfig != "trx") {
-        throw new ArgumentException($"Unsupported verification logger config: {loggerConfig}");
-      }
-
+    public static TestProperty ResourceCountProperty = TestProperty.Register("TestResult.ResourceCount", "TestResult.ResourceCount", typeof(int), typeof(TestResult));
+    
+    public static void RaiseTestLoggerEvents(string fileName, List<string> loggerConfigs) {
       var events = new LocalTestLoggerEvents();
-      var logger = new TrxLogger();
-      // Provide just enough configuration for the TRX logger to work
-      logger.Initialize(events, new Dictionary<string, string> {
+      // Provide just enough configuration for the loggers to work
+      var parameters = new Dictionary<string, string> {
         ["TestRunDirectory"] = Constants.DefaultResultsDirectory
-      });
+      };
+      foreach(var loggerConfig in loggerConfigs) {
+        if (loggerConfig == "trx") {
+          var logger = new TrxLogger();
+          logger.Initialize(events, parameters);
+        } else if (loggerConfig == "csv") {
+          var csvLogger = new CSVTestLogger();
+          csvLogger.Initialize(events, parameters);
+        } else {
+          throw new ArgumentException("Unsupported verification logger config: {loggerConfig}");
+        }
+      }
       events.EnableEvents();
 
       // Sort failures to the top, and then slower procedures first.
@@ -63,7 +70,7 @@ namespace Microsoft.Dafny {
             currentFileFragment = child.Attribute("name")!.Value;
             break;
           case "method":
-            testResults.Add(ToTestResult(child, currentFileFragment));
+            testResults.AddRange(TestResultsForMethod(child, currentFileFragment));
             break;
         }
       }
@@ -71,14 +78,23 @@ namespace Microsoft.Dafny {
       return testResults;
     }
 
+    private static IEnumerable<TestResult> TestResultsForMethod(XElement method, string currentFileFragment) {
+      // Only report the top level method result if there was no splitting
+      var childSplits = method.Nodes().OfType<XElement>().Where(child => child.Name.LocalName == "split").ToList();
+      return childSplits.Count > 1
+        ? childSplits.Select(childSplit => ToTestResult(childSplit, currentFileFragment)) 
+        : new[] { ToTestResult(method, currentFileFragment) };
+    }
+    
     private static TestResult ToTestResult(XElement node, string currentFileFragment) {
       var name = node.Attribute("name")!.Value;
       var startTime = node.Attribute("startTime")!.Value;
       var conclusionNode = node.Nodes()
                                        .OfType<XElement>()
                                        .Single(n => n.Name.LocalName == "conclusion");
-      var endTime = conclusionNode.Attribute("endTime")!.Value;
+      var endTime = conclusionNode.Attribute("endTime")?.Value;
       var duration = float.Parse(conclusionNode.Attribute("duration")!.Value);
+      var resourceCount = conclusionNode.Attribute("resourceCount")?.Value;
       var outcome = conclusionNode.Attribute("outcome")!.Value;
 
       var testCase = new TestCase {
@@ -89,11 +105,17 @@ namespace Microsoft.Dafny {
 
       var testResult = new TestResult(testCase) {
         StartTime = DateTimeOffset.Parse(startTime),
-        EndTime = DateTimeOffset.Parse(endTime),
         Duration = TimeSpan.FromMilliseconds((long)(duration * 1000))
       };
+      if (endTime != null) {
+        testResult.EndTime = DateTimeOffset.Parse(endTime);
+      }
 
-      if (outcome == "correct") {
+      if (resourceCount != null) {
+        testResult.SetPropertyValue(ResourceCountProperty, int.Parse(resourceCount));
+      }
+
+      if (outcome is "correct" or "valid") {
         testResult.Outcome = TestOutcome.Passed;
       } else {
         testResult.Outcome = TestOutcome.Failed;

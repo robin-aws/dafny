@@ -24,18 +24,25 @@ namespace Microsoft.Dafny {
   /// </summary>
   public static class BoogieXmlConvertor {
 
-    public static void RaiseTestLoggerEvents(string fileName, string loggerConfig) {
-      // The only supported value for now
-      if (loggerConfig != "trx") {
-        throw new ArgumentException($"Unsupported verification logger config: {loggerConfig}");
-      }
-
+    public static TestProperty ResourceCountProperty = TestProperty.Register("TestResult.ResourceCount", "TestResult.ResourceCount", typeof(int), typeof(TestResult));
+    
+    public static void RaiseTestLoggerEvents(string fileName, List<string> loggerConfigs) {
       var events = new LocalTestLoggerEvents();
-      var logger = new TrxLogger();
-      // Provide just enough configuration for the TRX logger to work
-      logger.Initialize(events, new Dictionary<string, string> {
+      // Provide just enough configuration for the loggers to work
+      var parameters = new Dictionary<string, string> {
         ["TestRunDirectory"] = Constants.DefaultResultsDirectory
-      });
+      };
+      foreach(var loggerConfig in loggerConfigs) {
+        if (loggerConfig == "trx") {
+          var logger = new TrxLogger();
+          logger.Initialize(events, parameters);
+        } else if (loggerConfig == "csv") {
+          var csvLogger = new CSVTestLogger();
+          csvLogger.Initialize(events, parameters);
+        } else {
+          throw new ArgumentException("Unsupported verification logger config: {loggerConfig}");
+        }
+      }
       events.EnableEvents();
 
       // Sort failures to the top, and then slower procedures first.
@@ -87,6 +94,7 @@ namespace Microsoft.Dafny {
                                        .Single(n => n.Name.LocalName == "conclusion");
       var endTime = conclusionNode.Attribute("endTime")?.Value;
       var duration = float.Parse(conclusionNode.Attribute("duration")!.Value);
+      var resourceCount = conclusionNode.Attribute("resourceCount")?.Value;
       var outcome = conclusionNode.Attribute("outcome")!.Value;
 
       var testCase = new TestCase {
@@ -101,6 +109,10 @@ namespace Microsoft.Dafny {
       };
       if (endTime != null) {
         testResult.EndTime = DateTimeOffset.Parse(endTime);
+      }
+
+      if (resourceCount != null) {
+        testResult.SetPropertyValue(ResourceCountProperty, int.Parse(resourceCount));
       }
 
       if (outcome is "correct" or "valid") {

@@ -7,12 +7,16 @@
 //-----------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Xml.Linq;
 using Microsoft.VisualStudio.TestPlatform.Extensions.TrxLogger;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel.Client;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel.Logging;
+using Newtonsoft.Json;
 
 namespace Microsoft.Dafny {
 
@@ -25,7 +29,7 @@ namespace Microsoft.Dafny {
   public static class BoogieXmlConvertor {
 
     public static TestProperty ResourceCountProperty = TestProperty.Register("TestResult.ResourceCount", "TestResult.ResourceCount", typeof(int), typeof(TestResult));
-    
+
     public static void RaiseTestLoggerEvents(string fileName, List<string> loggerConfigs) {
       var events = new LocalTestLoggerEvents();
       // Provide just enough configuration for the loggers to work
@@ -43,6 +47,7 @@ namespace Microsoft.Dafny {
           throw new ArgumentException("Unsupported verification logger config: {loggerConfig}");
         }
       }
+
       events.EnableEvents();
 
       // Sort failures to the top, and then slower procedures first.
@@ -50,13 +55,22 @@ namespace Microsoft.Dafny {
       var results = ReadTestResults(fileName)
         .OrderBy(r => r.Outcome == TestOutcome.Passed)
         .ThenByDescending(r => r.Duration);
-      foreach (var result in results) {
+      foreach(var result in results) {
         events.RaiseTestResult(new TestResultEventArgs(result));
       }
 
+      var attachmentSet = new AttachmentSet(new Uri("dataCollector://otherProperties"), "Other Properties");
+      var tmpFile = Path.GetTempFileName();
+      var asJson = JsonConvert.SerializeObject(results);
+      File.WriteAllText(tmpFile, asJson);
+      var attachment = new UriDataAttachment(new Uri($"file://{tmpFile}"), "All results");
+      attachmentSet.Attachments.Add(attachment);
+      var attachmentSets = new Collection<AttachmentSet>();
+      attachmentSets.Add(attachmentSet);
+
       events.RaiseTestRunComplete(new TestRunCompleteEventArgs(
         new TestRunStatistics(),
-        false, false, null, null, new TimeSpan()
+        false, false, null, attachmentSets, new TimeSpan()
       ));
     }
 
@@ -110,7 +124,6 @@ namespace Microsoft.Dafny {
       if (endTime != null) {
         testResult.EndTime = DateTimeOffset.Parse(endTime);
       }
-
       if (resourceCount != null) {
         testResult.SetPropertyValue(ResourceCountProperty, int.Parse(resourceCount));
       }

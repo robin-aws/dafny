@@ -13154,6 +13154,19 @@ namespace Microsoft.Dafny {
       if (function.Body != null) { Visit(function.Body, st); }
       //TODO More?
     }
+    
+    // public void Visit(MemberDecl decl, State st) {
+    //   module.TopLevelDecls.Iter(d => Visit(e, st));
+    // }
+    //
+    // public void Visit(ModuleDefinition module, State st) {
+    //   module..Iter(d => Visit(e, st));
+    // }
+    //
+    // public void Visit(Program program, State st) {
+    //   program.CompileModules.Iter(d => Visit(e, st));
+    // }
+
     /// <summary>
     /// Visit one expression proper.  This method is invoked before it is invoked on the
     /// sub-parts (sub-expressions and sub-statements).  A return value of "true" says to

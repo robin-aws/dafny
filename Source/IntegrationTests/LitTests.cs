@@ -141,5 +141,23 @@ namespace IntegrationTests {
     public void LitTest(string path) {
       LitTestCase.Run(path, Config, output);
     }
+
+    [Fact]
+    public void FeatureFilter() {
+      ErrorReporter reporter = new ConsoleErrorReporter();
+      var options = new DafnyOptions(reporter);
+      options.DafnyPrelude = "../../../../../Binaries/DafnyPrelude.bpl";
+      DafnyOptions.Install(options);
+      
+      var programString = @"trait Trait<A, B> { }";
+      ModuleDecl module = new LiteralModuleDecl(new DefaultModuleDecl(), null);
+      Microsoft.Dafny.Type.ResetScopes();
+      BuiltIns builtIns = new BuiltIns();
+      Parser.Parse(programString, "virtual", "virtual", module, builtIns, reporter);
+      var dafnyProgram = new Program("programName", module, builtIns, reporter);
+      Main.Resolve(dafnyProgram, reporter);
+      
+      
+    }
   }
 }

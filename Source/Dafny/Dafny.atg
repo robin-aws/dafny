@@ -2572,6 +2572,7 @@ OneStmt<out Statement/*!*/ s>
   | IfStmt<out s>
   | WhileStmt<out s>
   | ForLoopStmt<out s>
+  | ForeachLoopStmt<out s>
   | AssertStmt<out s, false>
   | AssumeStmt<out s>
   | BreakStmt<out s>
@@ -3360,6 +3361,35 @@ ForallStmt<out Statement/*!*/ s>
         tok = block.EndTok;
      }
      s = new ForallStmt(x, tok, bvars, qattrs, range, ens, block);
+  .)
+  .
+
+/*------------------------------------------------------------------------*/
+ForeachLoopStmt<out Statement/*!*/ s>
+= (. Contract.Ensures(Contract.ValueAtReturn(out s) != null);
+     IToken/*!*/ x = Token.NoToken;
+     List<BoundVar> bvars = null;
+     Attributes qattrs = null;
+     Expression range = null;
+     List<AttributedExpression> invariants = new List<AttributedExpression>();
+     List<Expression> decreases = new List<Expression>();
+     Attributes decAttrs = null;
+     Attributes modAttrs = null;
+     List<FrameExpression> mod = null;
+     BlockStmt block = null;
+     IToken bodyStart, bodyEnd;
+     IToken tok = Token.NoToken;
+  .)
+  "foreach"                                  (. x = t; tok = x; .)
+
+  QuantifierDomain<out bvars, out qattrs, out range>
+  (. if (range == null) { range = new LiteralExpr(x, true); }
+  .)
+  LoopSpec<invariants, decreases, ref mod, ref decAttrs, ref modAttrs>
+  BlockStmt<out block, out bodyStart, out bodyEnd>
+  (. s = new ForeachLoopStmt(x, block.EndTok, bvars, qattrs, range, 
+                             invariants, new Specification<Expression>(decreases, decAttrs), new Specification<FrameExpression>(mod, modAttrs),
+                             block);
   .)
   .
 

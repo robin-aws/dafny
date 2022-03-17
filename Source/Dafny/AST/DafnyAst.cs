@@ -8298,6 +8298,41 @@ namespace Microsoft.Dafny {
     }
   }
 
+  public class ForeachLoopStmt : OneBodyLoopStmt {
+    public readonly List<BoundVar> BoundVars;  // note, can be the empty list, in which case Range denotes "true"
+    public Expression Range;  // mostly readonly, except that it may in some cases be updated during resolution to conjoin the precondition of the call in the body
+
+    public List<ComprehensionExpr.BoundedPool> Bounds;  // initialized and filled in by resolver
+    // invariant: if successfully resolved, Bounds.Count == BoundVars.Count;
+
+
+    public ForeachLoopStmt(IToken tok, IToken endTok, List<BoundVar> boundVars, Attributes attrs, Expression range, 
+        List<AttributedExpression> invariants, Specification<Expression> decreases, Specification<FrameExpression> mod, 
+        BlockStmt /*?*/ body)
+        : base(tok, endTok, invariants, decreases, mod, body, attrs) {
+      // TODO: double check these
+      Contract.Requires(tok != null);
+      Contract.Requires(endTok != null);
+      Contract.Requires(cce.NonNullElements(boundVars));
+      Contract.Requires(range != null);
+      Contract.Requires(boundVars.Count != 0 || LiteralExpr.IsTrue(range));
+      this.BoundVars = boundVars;
+      this.Range = range;
+    }
+    
+    public List<BoundVar> UnenumerableBoundVars() {
+      Contract.Ensures(Contract.Result<List<BoundVar>>() != null);
+      var v = ComprehensionExpr.BoundedPool.PoolVirtues.Enumerable;
+      return ComprehensionExpr.BoundedPool.MissingBounds(BoundVars, Bounds, v);
+    }
+    
+    public List<BoundVar> InfiniteBoundVars() {
+      Contract.Ensures(Contract.Result<List<BoundVar>>() != null);
+      var v = ComprehensionExpr.BoundedPool.PoolVirtues.Finite;
+      return ComprehensionExpr.BoundedPool.MissingBounds(BoundVars, Bounds, v);
+    }
+  }
+
   public class AlternativeLoopStmt : LoopStmt {
     public readonly bool UsesOptionalBraces;
     public readonly List<GuardedAlternative> Alternatives;

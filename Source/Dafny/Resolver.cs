@@ -8718,6 +8718,48 @@ namespace Microsoft.Dafny {
             }
           }
 
+        } else if (stmt is ForeachLoopStmt) {
+          var s = (ForeachLoopStmt)stmt;
+          if (proofContext != null && s.Mod.Expressions != null && s.Mod.Expressions.Count != 0) {
+            Error(s.Mod.Expressions[0].tok, $"a loop in {proofContext} is not allowed to use 'modifies' clauses");
+          }
+
+          s.IsGhost = mustBeErasable;
+          if (!mustBeErasable && s.IsGhost) {
+            resolver.reporter.Info(MessageSource.Resolver, s.Tok, "ghost for-loop");
+          }
+          if (s.IsGhost) {
+            if (s.Decreases.Expressions.Exists(e => e is WildcardExpr)) {
+              Error(s, "'decreases *' is not allowed on ghost loops");
+            }
+          }
+          if (s.IsGhost && s.Mod.Expressions != null) {
+            s.Mod.Expressions.Iter(resolver.DisallowNonGhostFieldSpecifiers);
+          }
+          if (s.Body != null) {
+            Visit(s.Body, s.IsGhost, proofContext);
+            if (s.Body.IsGhost) {
+              s.IsGhost = true;
+            }
+          }
+          
+          var unenumerableBoundVars = s.UnenumerableBoundVars();
+          if (unenumerableBoundVars.Count != 0) {
+            foreach (var bv in unenumerableBoundVars) {
+              Error(s, "foreach statements must have enumerable ranges, but Dafny's heuristics can't figure out how to produce an enumeration for '{0}'", bv.Name);
+            }
+          }
+          
+          if (s.IsGhost || !s.Decreases.Expressions.Exists(e => e is WildcardExpr)) {
+            var infiniteBoundVars = s.InfiniteBoundVars();
+            if (infiniteBoundVars.Count != 0) {
+              foreach (var bv in infiniteBoundVars) {
+                // TODO: Fix error message
+                Error(s, "foreach statements in non-ghost contexts must be compilable, but Dafny's heuristics can't figure out how to produce or compile a bounded set of values for '{0}'", bv.Name);
+              }
+            }
+          }
+
         } else if (stmt is ForallStmt) {
           var s = (ForallStmt)stmt;
           s.IsGhost = mustBeErasable || s.Kind != ForallStmt.BodyKind.Assign || ExpressionTester.UsesSpecFeatures(s.Range);

@@ -11424,6 +11424,21 @@ namespace Microsoft.Dafny {
           scope.PushMarker();
           ScopePushAndReport(scope, loopIndex, "index-variable");
           ResolveAttributes(s, new ResolveOpts(codeContext, true));
+        } else if (s is ForeachLoopStmt foreachS) {
+          int prevErrorCount = reporter.Count(ErrorLevel.Error);
+          scope.PushMarker();
+          foreach (BoundVar v in foreachS.BoundVars) {
+            ScopePushAndReport(scope, v, "local-variable");
+            ResolveType(v.tok, v.Type, codeContext, ResolveTypeOptionEnum.InferTypeProxies, null);
+          }
+          ResolveExpression(foreachS.Range, new ResolveOpts(codeContext, true));
+          Contract.Assert(foreachS.Range.Type != null);  // follows from postcondition of ResolveExpression
+          ConstrainTypeExprBool(foreachS.Range, "range restriction in foreach statement must be of type bool (instead got {0})");
+          // Since the range is more likely to infer the types of the bound variables, resolve them
+          // first (above) and only then resolve the attributes (below).
+          ResolveAttributes(foreachS, new ResolveOpts(codeContext, true));
+          
+          // TODO: Probably have to special-case decreases here too
         }
 
         ResolveLoopSpecificationComponents(s.Invariants, s.Decreases, s.Mod, codeContext, fvs, ref usesHeap);
@@ -11450,7 +11465,7 @@ namespace Microsoft.Dafny {
           reporter.Warning(MessageSource.Resolver, s.Tok, text);
         }
 
-        if (s is ForLoopStmt) {
+        if (s is ForLoopStmt || s is ForeachLoopStmt) {
           scope.PopMarker();
         }
 

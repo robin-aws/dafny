@@ -6640,6 +6640,12 @@ namespace Microsoft.Dafny {
           s.Bounds = DiscoverBestBounds_MultipleVars(s.BoundVars, s.Range, true, ComprehensionExpr.BoundedPool.PoolVirtues.Enumerable);
           s.BoundVars.Iter(bv => CheckTypeArgsContainNoOrdinal(bv.tok, bv.Type));
 
+        } else if (stmt is ForeachLoopStmt) {
+          var s = (ForeachLoopStmt)stmt;
+          s.BoundVars.Iter(bv => CheckTypeIsDetermined(bv.tok, bv.Type, "bound variable"));
+          s.Bounds = DiscoverBestBounds_MultipleVars(s.BoundVars, s.Range, true, ComprehensionExpr.BoundedPool.PoolVirtues.Enumerable);
+          s.BoundVars.Iter(bv => CheckTypeArgsContainNoOrdinal(bv.tok, bv.Type));
+
         } else if (stmt is AssignSuchThatStmt) {
           var s = (AssignSuchThatStmt)stmt;
           if (s.AssumeToken == null) {
@@ -7042,6 +7048,8 @@ namespace Microsoft.Dafny {
           resolver.CheckLocalityUpdates(astmt.Proof, new HashSet<LocalVariable>(), "an assert-by body");
         } else if (stmt is ForallStmt forall && forall.Body != null) {
           resolver.CheckLocalityUpdates(forall.Body, new HashSet<LocalVariable>(), "a forall statement");
+        } else if (stmt is ForeachLoopStmt foreachS && foreachS.Body != null) {
+          resolver.CheckLocalityUpdates(foreachS.Body, new HashSet<LocalVariable>(), "a foreach loop");
         }
       }
     }
@@ -8087,6 +8095,18 @@ namespace Microsoft.Dafny {
           foreach (var ee in s.Ens) {
             Visit(Attributes.SubExpressions(ee.Attributes), true);
             Visit(ee.E, true);
+          }
+          Visit(s.SubStatements, inGhostContext);
+          return false;
+        } else if (stmt is ForeachLoopStmt) {
+          var s = (ForeachLoopStmt)stmt;
+          foreach (var v in s.BoundVars) {
+            VisitType(v.Tok, v.Type, inGhostContext);
+          }
+          // do substatements and subexpressions
+          Visit(Attributes.SubExpressions(s.Attributes), true);
+          if (s.Range != null) {
+            Visit(s.Range, inGhostContext);
           }
           Visit(s.SubStatements, inGhostContext);
           return false;

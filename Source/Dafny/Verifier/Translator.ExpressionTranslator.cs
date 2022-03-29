@@ -1938,6 +1938,8 @@ BplBoundVar(varNameGen.FreshId(string.Format("#{0}#", bv.Name)), predef.BoxType,
             name = "timeLimit";
           } else if (name == "_rlimit") {
             name = "rlimit";
+          } else if (name == "synthesize") {
+            name = "extern";
           }
           kv = new Boogie.QKeyValue(Token.NoToken, name, parms, kv);
         }

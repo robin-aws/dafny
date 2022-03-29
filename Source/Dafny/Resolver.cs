@@ -11454,7 +11454,7 @@ namespace Microsoft.Dafny {
           ResolveExpression(foreachS.Range, new ResolveOpts(codeContext, true));
           Contract.Assert(foreachS.Range.Type != null);  // follows from postcondition of ResolveExpression
           ConstrainTypeExprBool(foreachS.Range, "range restriction in foreach statement must be of type bool (instead got {0})");
-          // Since the range is more likely to infer the types of the bound variables, resolve them
+          // Since the range is more likely to infer the types of the bound variables, resolve it
           // first (above) and only then resolve the attributes (below).
           ResolveAttributes(foreachS, new ResolveOpts(codeContext, true));
           

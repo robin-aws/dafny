@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Diagnostics.Contracts;
+using System.Threading;
 using JetBrains.Annotations;
 using Microsoft.BaseTypes;
 using Microsoft.Boogie;
@@ -18,13 +19,15 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Microsoft.Dafny {
   public record TypeConstraint(Type Super, Type Sub, TypeConstraint.ErrorMsg ErrMsg, bool KeepConstraints) {
-    private static readonly List<ErrorMsg> ErrorsToBeReported = new List<ErrorMsg>();
+    private static readonly ThreadLocal<List<ErrorMsg>> ErrorsToBeReported = new (() =>
+      new List<ErrorMsg>()
+    );
     public static void ReportErrors(ErrorReporter reporter) {
       Contract.Requires(reporter != null);
-      foreach (var err in ErrorsToBeReported) {
+      foreach (var err in ErrorsToBeReported.Value) {
         err.ReportAsError(reporter);
       }
-      ErrorsToBeReported.Clear();
+      ErrorsToBeReported.Value.Clear();
     }
     public abstract class ErrorMsg {
       public abstract IToken Tok { get; }
@@ -33,7 +36,7 @@ namespace Microsoft.Dafny {
         if (DafnyOptions.O.TypeInferenceDebug) {
           Console.WriteLine($"DEBUG: flagging error: {ApproximateErrorMessage()}");
         }
-        TypeConstraint.ErrorsToBeReported.Add(this);
+        TypeConstraint.ErrorsToBeReported.Value.Add(this);
       }
       internal void ReportAsError(ErrorReporter reporter) {
         Contract.Requires(reporter != null);

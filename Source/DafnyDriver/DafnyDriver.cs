@@ -14,7 +14,9 @@ using System.Collections.Concurrent;
 using DafnyServer.CounterexampleGeneration;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
+using Dafny;
 
 namespace Microsoft.Dafny {
   using System;
@@ -41,20 +43,25 @@ namespace Microsoft.Dafny {
     // TODO: Refactor so that non-errors (NOT_VERIFIED, DONT_PROCESS_FILES) don't result in non-zero exit codes
     public enum ExitValue { SUCCESS = 0, PREPROCESSING_ERROR, DAFNY_ERROR, COMPILE_ERROR, VERIFICATION_ERROR }
 
+    // TODO: HACKITY HACK
+    public static ThreadLocal<TextWriter> perThreadOutWriter = new();
+
     public static int Main(string[] args) {
       int ret = 0;
-      var thread = new System.Threading.Thread(
-        new System.Threading.ThreadStart(() => { ret = ThreadMain(args); }),
-          0x10000000); // 256MB stack size to prevent stack overflow
+      var mainThreadWriter = perThreadOutWriter.Value;
+      var thread = new System.Threading.Thread((() => {
+          ret = ThreadMain(args, mainThreadWriter);
+        }),
+        0x10000000); // 256MB stack size to prevent stack overflow
       thread.Start();
       thread.Join();
       return ret;
     }
 
-    public static int ThreadMain(string[] args) {
+    public static int ThreadMain(string[] args, TextWriter outWriter) {
       Contract.Requires(cce.NonNullElements(args));
 
-      ErrorReporter reporter = new ConsoleErrorReporter();
+      ErrorReporter reporter = new ConsoleErrorReporter(outWriter);
 
       var dafnyOptions = new DafnyOptions();
       CommandLineArgumentsResult cliArgumentsResult = ProcessCommandLineArguments(dafnyOptions, args, out var dafnyFiles, out var otherFiles);

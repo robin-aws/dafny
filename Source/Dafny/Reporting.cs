@@ -5,8 +5,10 @@ using Microsoft.Boogie;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.IO;
 using System.Linq;
 using System.Text;
+using JetBrains.Annotations;
 
 namespace Microsoft.Dafny {
   public enum ErrorLevel {
@@ -179,6 +181,12 @@ namespace Microsoft.Dafny {
   }
 
   public class ConsoleErrorReporter : BatchErrorReporter {
+    [CanBeNull] private readonly TextWriter outWriter;
+
+    public ConsoleErrorReporter(TextWriter outWriter = null) {
+      this.outWriter = outWriter;
+    }
+    
     private ConsoleColor ColorForLevel(ErrorLevel level) {
       switch (level) {
         case ErrorLevel.Error:
@@ -197,8 +205,6 @@ namespace Microsoft.Dafny {
         // Extra indent added to make it easier to distinguish multiline error messages for clients that rely on the CLI
         msg = msg.Replace(Environment.NewLine, Environment.NewLine + " ");
 
-        ConsoleColor previousColor = Console.ForegroundColor;
-        Console.ForegroundColor = ColorForLevel(level);
         var errorLine = ErrorToString(level, tok, msg);
         while (tok is NestedToken nestedToken) {
           tok = nestedToken.Inner;
@@ -210,9 +216,16 @@ namespace Microsoft.Dafny {
           msg = nestedToken.Message ?? "[Related location]";
           errorLine += $" {msg} {TokenToString(tok)}";
         }
-        Console.WriteLine(errorLine);
 
-        Console.ForegroundColor = previousColor;
+        if (outWriter == null) {
+          ConsoleColor previousColor = Console.ForegroundColor;
+          Console.ForegroundColor = ColorForLevel(level);
+          Console.WriteLine(errorLine);
+          Console.ForegroundColor = previousColor;
+        } else {
+          outWriter.WriteLine(errorLine);
+        }
+
         return true;
       } else {
         return false;

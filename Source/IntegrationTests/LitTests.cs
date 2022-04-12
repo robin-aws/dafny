@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using JetBrains.Annotations;
 using Microsoft.Dafny;
 using Xunit;
 using Xunit.Abstractions;
@@ -12,13 +13,15 @@ using XUnitExtensions.Lit;
 
 [assembly: TestCollectionOrderer("XUnitExtensions.TestCollectionShardFilter", "XUnitExtensions")]
 
+[assembly: CollectionBehavior(MaxParallelThreads = 1)]
+
 namespace IntegrationTests {
   public class LitTests {
 
     // Change this to true in order to debug the execution of commands like %dafny.
     // This is false by default because the main dafny CLI implementation currently has shared static state, which
     // causes errors when invoking the CLI in the same process on multiple inputs in sequence, much less in parallel.
-    private const bool InvokeMainMethodsDirectly = false;
+    private const bool InvokeMainMethodsDirectly = true;
 
     private static readonly Assembly DafnyDriverAssembly = typeof(DafnyDriver).Assembly;
     private static readonly Assembly DafnyServerAssembly = typeof(Server).Assembly;
@@ -42,11 +45,12 @@ namespace IntegrationTests {
       "/timeLimit:300"
     };
 
-    private static ILitCommand MainWithArguments(Assembly assembly, IEnumerable<string> arguments,
-      LitTestConfiguration config, bool invokeDirectly) {
-      return MainMethodLitCommand.Parse(assembly, arguments, config, invokeDirectly);
+    private static void SetDafnyDriverStreams(TextReader? inReader, TextWriter? outWriter, TextWriter? errWriter) {
+      if (outWriter != null) {
+        DafnyDriver.perThreadOutWriter.Value = outWriter;
+      }
     }
-
+    
     private static readonly LitTestConfiguration Config;
 
     static LitTests() {

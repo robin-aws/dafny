@@ -32,13 +32,13 @@ jobs:
     steps:
       - name: Debug
         run: |
-          echo ${{ steps.populate-os-list.outputs.os-list }}
+          echo ${{ needs.populate-matrix-dimensions.outputs.os-list }}
   test:
     needs: populate-matrix-dimensions
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: ${{ fromJson(needs.populate-matrix-dimensions.os-list) }}
+        os: ${{ fromJson(needs.populate-matrix-dimensions.outputs.os-list) }}
         ## Size of the following array must match --num-shards in lit command
         shard: [1, 2, 3, 4, 5]
         include:

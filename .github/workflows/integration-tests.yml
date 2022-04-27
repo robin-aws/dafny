@@ -26,7 +26,7 @@ jobs:
           echo "::set-output name=os-mapping::\{\"ubuntu-latest\": \"ubuntu\"\}"
       - name: Debug
         run: |
-          echo ${{ steps.populate-os-list.outputs.os-list }}
+          echo ${{ fromJson(steps.populate-os-list.outputs.os-list) }}
     outputs:
       os-list: ${{ steps.populate-os-list.outputs.os-list }}
   test:

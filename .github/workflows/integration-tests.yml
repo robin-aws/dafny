@@ -20,10 +20,10 @@ jobs:
       - name: Populate OS list - all
         id: populate-os-list
         run: |
-          echo ::set-output name=os-list::['ubuntu-latest', 'ubuntu-18.04', 'macos-latest', 'windows-latest']
+          echo "::set-output name=os-list::[\"ubuntu-latest\", \"ubuntu-18.04\", \"macos-latest\", \"windows-latest\"]"
       - name: Populate OS mapping for package.py
         run: |
-          echo ::set-output name=os-mapping::\{'ubuntu-latest': 'ubuntu'\}
+          echo "::set-output name=os-mapping::\{\"ubuntu-latest\": \"ubuntu\"\}"
     outputs:
       os-list: ${{ steps.populate-os-list.outputs.os-list }}
   debug:
@@ -40,7 +40,7 @@ jobs:
       matrix:
         os: ${{ fromJson(needs.populate-matrix-dimensions.outputs.os-list) }}
         ## Size of the following array must match --num-shards in lit command
-        shard: [1, 2, 3, 4, 5]
+        shard: [1]
         include:
         - os:                  'ubuntu-latest'
           os_for_build:        'ubuntu'
@@ -88,7 +88,7 @@ jobs:
     - run: rm dafny/Test/libraries/lit.site.cfg # we remove the lit configuration file in the library repo (a git submodule) to prevent override
     - name: Create release
       run: |
-        python dafny/Scripts/package.py 0.0.0-CI --os ${{ matrix.os_for_build }} --skip_manual=true --trial=true --github_secret=${{ secrets.GITHUB_TOKEN }} --out=CI.zip
+        python dafny/Scripts/package.py 0.0.0-CI --os ${{ fromJson(needs.populate-matrix-dimensions.outputs.os-mapping)[matrix.os] }} --skip_manual=true --trial=true --github_secret=${{ secrets.GITHUB_TOKEN }} --out=CI.zip
     - if: runner.os == 'Windows'
       shell: pwsh
       run: |
@@ -108,7 +108,7 @@ jobs:
       if: runner.os != 'Windows'
       env:
         XUNIT_SHARD: ${{ matrix.shard }}
-        XUNIT_SHARD_COUNT: 5
+        XUNIT_SHARD_COUNT: 1
         DAFNY_RELEASE: ${{ github.workspace }}/unzippedRelease/dafny
       run: |
         dotnet test -v:n --logger trx dafny/Source/IntegrationTests/IntegrationTests.csproj

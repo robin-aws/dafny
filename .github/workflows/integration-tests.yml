@@ -20,10 +20,10 @@ jobs:
       - name: Populate OS list - all
         id: populate-os-list
         run: |
-          echo "::set-output name=os-list::['ubuntu-latest', 'ubuntu-18.04', 'macos-latest', 'windows-latest']"
+          echo "::set-output name=os-list::[\"ubuntu-latest\", \"ubuntu-18.04\", \"macos-latest\", \"windows-latest\"]"
       - name: Populate OS mapping for package.py
         run: |
-          echo "::set-output name=os-mapping::\{'ubuntu-latest': 'ubuntu'\}"
+          echo "::set-output name=os-mapping::\{\"ubuntu-latest\": \"ubuntu\"\}"
       - name: Debug
         run: |
           echo ${{ steps.populate-os-list.outputs.os-list }}

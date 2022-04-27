@@ -12,6 +12,17 @@ on:
     secrets:
       token:
         required: true
+  workflow_dispatch:
+    inputs:
+      all_platforms:
+        required: true
+        type: boolean
+      num_shards:
+        required: true
+        type: number
+    secrets:
+      token:
+        required: true
 
 env:
   dotnet-version: 6.0.x # SDK Version for building Dafny

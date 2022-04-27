@@ -48,8 +48,7 @@ jobs:
     strategy:
       matrix:
         os: ${{ fromJson(needs.populate-matrix-dimensions.outputs.os-list) }}
-        ## Size of the following array must match --num-shards in lit command
-        shard: [1]
+        shard: ${{ fromJson(needs.populate-matrix-dimensions.outputs.shard-list) }}
       fail-fast: false
     steps:
     - name: Manually sync certs

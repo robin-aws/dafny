@@ -1,18 +1,7 @@
 name: Integration Tests
 
 on:
-  # workflow_call:
-  #   inputs:
-  #     all_platforms:
-  #       required: true
-  #       type: boolean
-  #     num_shards:
-  #       required: true
-  #       type: number
-  #   secrets:
-  #     token:
-  #       required: true
-  workflow_dispatch:
+  workflow_call:
     inputs:
       all_platforms:
         required: true

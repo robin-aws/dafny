@@ -10,7 +10,7 @@ on:
         required: true
         type: number
     secrets:
-      github_token:
+      token:
         required: true
 
 env:

@@ -53,6 +53,6 @@ jobs:
       run: dotnet tool run dotnet-format -w -s error --check Source/Dafny.sln --exclude Dafny/Scanner.cs --exclude Dafny/Parser.cs
       
   integration-tests:
-    uses: ./.github/workflowsintegration-tests.yml
+    uses: ./.github/workflows/integration-tests.yml
     with:
       all_platforms: false

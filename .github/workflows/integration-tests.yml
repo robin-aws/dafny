@@ -25,10 +25,10 @@ jobs:
         id: populate-os-mapping
         run: |
           echo "::set-output name=os-mapping::{\"ubuntu-latest\": \"ubuntu\", \"ubuntu-18.04\": \"ubuntu\", \"macos-latest\": \"osx\", \"windows-latest\": \"win\"}"
-     - name: Populate shard list
+      - name: Populate shard list
         id: populate-shard-list
         run: |
-          echo "::set-output name=shard-list::[1, 2, 3, 4, 5]"
+          echo "::set-output name=shard-list::[" $(seq -s , 1 ${{ inputs.num_shards }}) "]"
     outputs:
       os-list: ${{ steps.populate-os-list.outputs.os-list }}
       os-mapping: ${{ steps.populate-os-mapping.outputs.os-mapping }}

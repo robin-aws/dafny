@@ -24,10 +24,15 @@ jobs:
       - name: Populate OS mapping for package.py
         id: populate-os-mapping
         run: |
-          echo "::set-output name=os-mapping::{\"ubuntu-latest\": \"ubuntu\"}"
+          echo "::set-output name=os-mapping::{\"ubuntu-latest\": \"ubuntu\", \"ubuntu-18.04\": \"ubuntu\", \"macos-latest\": \"osx\", \"windows-latest\": \"win\"}"
+     - name: Populate shard list
+        id: populate-shard-list
+        run: |
+          echo "::set-output name=shard-list::" $(seq -s , 1 ${{ inputs.num_shards }})
     outputs:
       os-list: ${{ steps.populate-os-list.outputs.os-list }}
       os-mapping: ${{ steps.populate-os-mapping.outputs.os-mapping }}
+      shard-list: ${{ steps.populate-shard-list.outputs.shard-list }}
   debug:
     needs: populate-matrix-dimensions
     runs-on: ubuntu-latest
@@ -36,6 +41,7 @@ jobs:
         run: |
           echo ${{ needs.populate-matrix-dimensions.outputs.os-list }}
           echo ${{ needs.populate-matrix-dimensions.outputs.os-mapping }}
+          echo ${{ needs.populate-matrix-dimensions.outputs.shard-list }}
   test:
     needs: populate-matrix-dimensions
     runs-on: ${{ matrix.os }}
@@ -44,16 +50,6 @@ jobs:
         os: ${{ fromJson(needs.populate-matrix-dimensions.outputs.os-list) }}
         ## Size of the following array must match --num-shards in lit command
         shard: [1]
-        include:
-        - os:                  'ubuntu-latest'
-          os_for_build:        'ubuntu'
-        - os:                  'ubuntu-18.04'
-          os_for_build:        'ubuntu'
-        - os:                  'macos-latest'
-          os_for_build:        'osx'
-        - os:                  'windows-latest'
-          os_for_build:        'win'
-
       fail-fast: false
     steps:
     - name: Manually sync certs
@@ -111,7 +107,7 @@ jobs:
       if: runner.os != 'Windows'
       env:
         XUNIT_SHARD: ${{ matrix.shard }}
-        XUNIT_SHARD_COUNT: 1
+        XUNIT_SHARD_COUNT: ${{ inputs.num_shards }}
         DAFNY_RELEASE: ${{ github.workspace }}/unzippedRelease/dafny
       run: |
         dotnet test -v:n --logger trx dafny/Source/IntegrationTests/IntegrationTests.csproj

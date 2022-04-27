@@ -23,7 +23,7 @@ jobs:
           echo "::set-output name=os-list::[\"ubuntu-latest\", \"ubuntu-18.04\", \"macos-latest\", \"windows-latest\"]"
       - name: Populate OS mapping for package.py
         run: |
-          echo "::set-output name=os-mapping::\{\"ubuntu-latest\": \"ubuntu\"\}"
+          echo "::set-output name=os-mapping::{\"ubuntu-latest\": \"ubuntu\"}"
     outputs:
       os-list: ${{ steps.populate-os-list.outputs.os-list }}
   debug:
@@ -33,6 +33,7 @@ jobs:
       - name: Debug
         run: |
           echo ${{ needs.populate-matrix-dimensions.outputs.os-list }}
+          echo ${{ needs.populate-matrix-dimensions.outputs.os-mapping }}
   test:
     needs: populate-matrix-dimensions
     runs-on: ${{ matrix.os }}

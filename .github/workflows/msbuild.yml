@@ -56,3 +56,4 @@ jobs:
     uses: ./.github/workflows/integration-tests.yml
     with:
       all_platforms: false
+      num_shards: 5

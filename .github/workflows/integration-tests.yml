@@ -27,7 +27,7 @@ jobs:
           echo "::set-output name=os-mapping::{\"ubuntu-latest\": \"ubuntu\"}"
     outputs:
       os-list: ${{ steps.populate-os-list.outputs.os-list }}
-      os-list: ${{ steps.populate-os-mapping.outputs.os-mapping }}
+      os-mapping: ${{ steps.populate-os-mapping.outputs.os-mapping }}
   debug:
     needs: populate-matrix-dimensions
     runs-on: ubuntu-latest

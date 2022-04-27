@@ -33,7 +33,6 @@ jobs:
       - name: Debug
         run: |
           echo ${{ steps.populate-os-list.outputs.os-list }}
-          echo ${{ fromJson(steps.populate-os-list.outputs.os-list) }}
   test:
     needs: populate-matrix-dimensions
     runs-on: ${{ matrix.os }}

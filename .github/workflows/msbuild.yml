@@ -53,8 +53,23 @@ jobs:
       working-directory: dafny
       run: dotnet tool run dotnet-format -w -s error --check Source/Dafny.sln --exclude Dafny/Scanner.cs --exclude Dafny/Parser.cs
       
+  check-deep-tests:
+    - uses: actions/github-script@v6
+      with:
+        script: |
+          const run = octokit.rest.actions.listWorkflowRuns({
+            owner: 'dafny-lang',
+            repo: 'dafny',
+            workflow_id: 'deep-tests.yml',
+            per-page: 1
+          })[0]
+          if (run.conclusion != "success") {
+            core.setFailed('Last run of deep tests did not succeed!')
+          }
+  
   integration-tests:
+    needs: check-deep-tests
     uses: ./.github/workflows/integration-tests.yml
     with:
       all_platforms: false
-      num_shards: 3
+      num_shards: 5

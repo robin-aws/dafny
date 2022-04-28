@@ -1,7 +1,7 @@
 name: Deep Integration Tests
 
 on:
-  workflow-dispatch:
+  workflow_dispatch:
   
 jobs:
   deep-integration-tests:

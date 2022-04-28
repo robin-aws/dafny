@@ -59,7 +59,7 @@ jobs:
       - uses: actions/github-script@v6
         with:
           script: |
-            const run = octokit.rest.actions.listWorkflowRuns({
+            const run = github.rest.actions.listWorkflowRuns({
               owner: 'dafny-lang',
               repo: 'dafny',
               workflow_id: 'deep-tests.yml',

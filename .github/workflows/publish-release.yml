@@ -20,7 +20,7 @@ jobs:
     # - uses: actions/github-script@v6
     #   with:
     #     script: |
-    #       const script = require('dafny/.github/workflows/check-for-deep-tests-success.js')
+    #       const script = require('check-for-deep-tests-success.js')
     #       console.log(script({github, context, core}))
     - id: get-version
       uses: battila7/get-version-action@v2
@@ -57,13 +57,13 @@ jobs:
         sudo gem install rouge
     - name: Package release files
       run: |
-        python dafny/Scripts/package.py ${{ steps.get_version.outputs.version-without-v }} --github_secret=${{ secrets.GITHUB_TOKEN }}
+        python dafny/Scripts/package.py ${{ steps.get-version.outputs.version-without-v }} --github_secret=${{ secrets.GITHUB_TOKEN }}
     - name: Create draft GitHub release
       uses: softprops/action-gh-release@v1
       with:
-        name: Dafny ${{ steps.get_version.outputs.version-without-v }}
+        name: Dafny ${{ steps.get-version.outputs.version-without-v }}
         draft: true
         files: |
-          Package/dafny-${{ steps.get_version.outputs.version-without-v }}*
+          Package/dafny-${{ steps.get-version.outputs.version-without-v }}*
           Package/DafnyRef.pdf
         fail_on_unmatched_files: true

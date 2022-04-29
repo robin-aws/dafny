@@ -20,7 +20,7 @@ jobs:
     - uses: actions/github-script@v6
       with:
         script: |
-          const script = require('.github/workflows/check-for-deep-tests-success.js')
+          const script = require('dafny/.github/workflows/check-for-deep-tests-success.js')
           console.log(script({github, context, core}))
     - id: get-version
       uses: battila7/get-version-action@v2

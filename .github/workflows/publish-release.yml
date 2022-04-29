@@ -57,7 +57,6 @@ jobs:
         sudo gem install rouge
     - name: Package release files
       run: |
-        eval "$(/usr/libexec/path_helper)"
         python dafny/Scripts/package.py ${{ steps.get_version.outputs.version-without-v }} --github_secret=${{ secrets.GITHUB_TOKEN }}
     - name: Create draft GitHub release
       uses: softprops/action-gh-release@v1

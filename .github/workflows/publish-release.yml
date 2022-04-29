@@ -57,8 +57,12 @@ jobs:
         sudo gem install rouge
     - name: Package release files
       run: |
+        python dafny/Scripts/package.py ${{ steps.get-version.outputs.version-without-v }} --skip_manual=true --trial=true --github_secret=${{ secrets.GITHUB_TOKEN }}
+    - name: Build reference manual
+      run: |
         eval "$(/usr/libexec/path_helper)"
-        python dafny/Scripts/package.py ${{ steps.get-version.outputs.version-without-v }} --trial=true --github_secret=${{ secrets.GITHUB_TOKEN }}
+        rm -f dafny/docs/DafnyRef/DafnyRef.pdf
+        make -C dafny/docs/DafnyRef
     - name: Create draft GitHub release
       uses: softprops/action-gh-release@v1
       with:

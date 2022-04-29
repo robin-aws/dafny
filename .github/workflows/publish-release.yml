@@ -10,39 +10,18 @@ env:
   dotnet-version: 6.0.x # SDK Version for building Dafny
   
 jobs:
-  check-deep-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/github-script@v6
-        with:
-          script: |
-            // This API doesn't support filtering by SHA, so we just
-            // fetch the first page and scan manually.
-            // That means if the run is fairly old it may be missed,
-            // but that should be rare.
-            const runs = github.rest.actions.listWorkflowRuns({
-              owner: 'dafny-lang',
-              repo: 'dafny',
-              workflow_id: 'deep-tests.yml'
-            })
-            // These are ordered by creation time, so decide based on the first
-            // run for this SHA we see.
-            for (const run of runs) {
-              if (run.sha == context.sha) {
-                if (run.conclusion != "success") {
-                  core.setFailed(`Last run of deep tests on $context.sha did not succeed!`)
-                } else {
-                  // The SHA is fully-tested, exit with success
-                  return
-                }
-              }
-            }
-            core.setFailed(`No run of deep tests found for $context.sha!`)
-
   publish-release:
-    # needs: check-deep-tests
     runs-on: macos-latest
     steps:
+    - name: Checkout Dafny
+      uses: actions/checkout@v2
+      with:
+        path: dafny
+    - uses: actions/github-script@v6
+      with:
+        script: |
+          const script = require('.github/workflows/check-for-deep-tests-success.js')
+          console.log(script({github, context, core}))
     - id: get-version
       uses: battila7/get-version-action@v2
     - uses: actions/setup-python@v1
@@ -65,11 +44,6 @@ jobs:
         java-version: 1.8
     - uses: actions/setup-node@v1
     - run: npm install bignumber.js
-    - name: Checkout Dafny
-      uses: actions/checkout@v2
-      with:
-        path: dafny
-        submodules: true
     - name: Install latex pandoc
       run: |
         brew install pandoc

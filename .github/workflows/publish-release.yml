@@ -69,6 +69,6 @@ jobs:
         name: Dafny ${{ steps.get-version.outputs.version-without-v }}
         draft: true
         files: |
-          Package/dafny-${{ steps.get-version.outputs.version-without-v }}*
-          Package/DafnyRef.pdf
+          dafny/Package/dafny-${{ steps.get-version.outputs.version-without-v }}*
+          dafny/docs/DafnyRef/DafnyRef.pdf
         fail_on_unmatched_files: true

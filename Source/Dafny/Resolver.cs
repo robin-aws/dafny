@@ -6651,6 +6651,12 @@ namespace Microsoft.Dafny {
           s.Bounds = DiscoverBestBounds_MultipleVars(s.BoundVars, s.Range, true, ComprehensionExpr.BoundedPool.PoolVirtues.Enumerable);
           s.BoundVars.Iter(bv => CheckTypeArgsContainNoOrdinal(bv.tok, bv.Type));
 
+        } else if (stmt is ForeachLoopStmt) {
+          var s = (ForeachLoopStmt)stmt;
+          s.BoundVars.Iter(bv => CheckTypeIsDetermined(bv.tok, bv.Type, "bound variable"));
+          s.Bounds = DiscoverBestBounds_MultipleVars(s.BoundVars, s.Range, true, ComprehensionExpr.BoundedPool.PoolVirtues.Enumerable);
+          s.BoundVars.Iter(bv => CheckTypeArgsContainNoOrdinal(bv.tok, bv.Type));
+
         } else if (stmt is AssignSuchThatStmt) {
           var s = (AssignSuchThatStmt)stmt;
           if (s.AssumeToken == null) {
@@ -6723,8 +6729,8 @@ namespace Microsoft.Dafny {
           if (e is QuantifierExpr quantifierExpr) {
             whereToLookForBounds = quantifierExpr.LogicalBody();
             polarity = quantifierExpr is ExistsExpr;
-          } else if (e is SetComprehension setComprehension) {
-            whereToLookForBounds = setComprehension.Range;
+          } else if (e is CollectionComprehension) {
+            whereToLookForBounds = e.Range;
           } else if (e is MapComprehension) {
             whereToLookForBounds = e.Range;
           } else {
@@ -7072,6 +7078,8 @@ namespace Microsoft.Dafny {
           resolver.CheckLocalityUpdates(astmt.Proof, new HashSet<LocalVariable>(), "an assert-by body");
         } else if (stmt is ForallStmt forall && forall.Body != null) {
           resolver.CheckLocalityUpdates(forall.Body, new HashSet<LocalVariable>(), "a forall statement");
+        } else if (stmt is ForeachLoopStmt foreachS && foreachS.Body != null) {
+          resolver.CheckLocalityUpdates(foreachS.Body, new HashSet<LocalVariable>(), "a foreach loop");
         }
       }
     }
@@ -8120,6 +8128,18 @@ namespace Microsoft.Dafny {
           }
           Visit(s.SubStatements, inGhostContext);
           return false;
+        } else if (stmt is ForeachLoopStmt) {
+          var s = (ForeachLoopStmt)stmt;
+          foreach (var v in s.BoundVars) {
+            VisitType(v.Tok, v.Type, inGhostContext);
+          }
+          // do substatements and subexpressions
+          Visit(Attributes.SubExpressions(s.Attributes), true);
+          if (s.Range != null) {
+            Visit(s.Range, inGhostContext);
+          }
+          Visit(s.SubStatements, inGhostContext);
+          return false;
         } else if (stmt is ExpectStmt) {
           var s = (ExpectStmt)stmt;
           Visit(Attributes.SubExpressions(s.Attributes), true);
@@ -8745,6 +8765,48 @@ namespace Microsoft.Dafny {
             Visit(s.Body, s.IsGhost, proofContext);
             if (s.Body.IsGhost) {
               s.IsGhost = true;
+            }
+          }
+
+        } else if (stmt is ForeachLoopStmt) {
+          var s = (ForeachLoopStmt)stmt;
+          if (proofContext != null && s.Mod.Expressions != null && s.Mod.Expressions.Count != 0) {
+            Error(s.Mod.Expressions[0].tok, $"a loop in {proofContext} is not allowed to use 'modifies' clauses");
+          }
+
+          s.IsGhost = mustBeErasable;
+          if (!mustBeErasable && s.IsGhost) {
+            resolver.reporter.Info(MessageSource.Resolver, s.Tok, "ghost for-loop");
+          }
+          if (s.IsGhost) {
+            if (s.Decreases.Expressions.Exists(e => e is WildcardExpr)) {
+              Error(s, "'decreases *' is not allowed on ghost loops");
+            }
+          }
+          if (s.IsGhost && s.Mod.Expressions != null) {
+            s.Mod.Expressions.Iter(resolver.DisallowNonGhostFieldSpecifiers);
+          }
+          if (s.Body != null) {
+            Visit(s.Body, s.IsGhost, proofContext);
+            if (s.Body.IsGhost) {
+              s.IsGhost = true;
+            }
+          }
+          
+          var unenumerableBoundVars = s.UnenumerableBoundVars();
+          if (unenumerableBoundVars.Count != 0) {
+            foreach (var bv in unenumerableBoundVars) {
+              Error(s, "foreach statements must have enumerable ranges, but Dafny's heuristics can't figure out how to produce an enumeration for '{0}'", bv.Name);
+            }
+          }
+          
+          if (s.IsGhost || !s.Decreases.Expressions.Exists(e => e is WildcardExpr)) {
+            var infiniteBoundVars = s.InfiniteBoundVars();
+            if (infiniteBoundVars.Count != 0) {
+              foreach (var bv in infiniteBoundVars) {
+                // TODO: Fix error message
+                Error(s, "foreach statements in non-ghost contexts must be compilable, but Dafny's heuristics can't figure out how to produce or compile a bounded set of values for '{0}'", bv.Name);
+              }
             }
           }
 
@@ -11418,6 +11480,21 @@ namespace Microsoft.Dafny {
           scope.PushMarker();
           ScopePushAndReport(scope, loopIndex, "index-variable");
           ResolveAttributes(s, new ResolveOpts(codeContext, true));
+        } else if (s is ForeachLoopStmt foreachS) {
+          int prevErrorCount = reporter.Count(ErrorLevel.Error);
+          scope.PushMarker();
+          foreach (BoundVar v in foreachS.BoundVars) {
+            ScopePushAndReport(scope, v, "local-variable");
+            ResolveType(v.tok, v.Type, codeContext, ResolveTypeOptionEnum.InferTypeProxies, null);
+          }
+          ResolveExpression(foreachS.Range, new ResolveOpts(codeContext, true));
+          Contract.Assert(foreachS.Range.Type != null);  // follows from postcondition of ResolveExpression
+          ConstrainTypeExprBool(foreachS.Range, "range restriction in foreach statement must be of type bool (instead got {0})");
+          // Since the range is more likely to infer the types of the bound variables, resolve it
+          // first (above) and only then resolve the attributes (below).
+          ResolveAttributes(foreachS, new ResolveOpts(codeContext, true));
+          
+          // TODO: Probably have to special-case decreases here too
         }
 
         ResolveLoopSpecificationComponents(s.Invariants, s.Decreases, s.Mod, codeContext, fvs, ref usesHeap);
@@ -11444,7 +11521,7 @@ namespace Microsoft.Dafny {
           reporter.Warning(MessageSource.Resolver, s.Tok, text);
         }
 
-        if (s is ForLoopStmt) {
+        if (s is ForLoopStmt || s is ForeachLoopStmt) {
           scope.PopMarker();
         }
 
@@ -15236,8 +15313,8 @@ namespace Microsoft.Dafny {
         scope.PopMarker();
         expr.Type = Type.Bool;
 
-      } else if (expr is SetComprehension) {
-        var e = (SetComprehension)expr;
+      } else if (expr is ComprehensionExpr) {
+        var e = (ComprehensionExpr)expr;
         int prevErrorCount = reporter.Count(ErrorLevel.Error);
         scope.PushMarker();
         foreach (BoundVar v in e.BoundVars) {
@@ -15256,8 +15333,16 @@ namespace Microsoft.Dafny {
 
         ResolveAttributes(e, opts);
         scope.PopMarker();
-        expr.Type = new SetType(e.Finite, e.Term.Type);
-
+        
+        switch (e) {
+          case SetComprehension se:
+            expr.Type = new SetType(se.Finite, se.Term.Type);
+            break;
+          case SeqComprehension se:
+            expr.Type = new SeqType(se.Term.Type);
+            break;
+        }
+          
       } else if (expr is MapComprehension) {
         var e = (MapComprehension)expr;
         int prevErrorCount = reporter.Count(ErrorLevel.Error);

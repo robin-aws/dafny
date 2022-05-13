@@ -8314,6 +8314,41 @@ namespace Microsoft.Dafny {
     }
   }
 
+  public class ForeachLoopStmt : OneBodyLoopStmt {
+    public readonly List<BoundVar> BoundVars;  // note, can be the empty list, in which case Range denotes "true"
+    public Expression Range;  // mostly readonly, except that it may in some cases be updated during resolution to conjoin the precondition of the call in the body
+
+    public List<ComprehensionExpr.BoundedPool> Bounds;  // initialized and filled in by resolver
+    // invariant: if successfully resolved, Bounds.Count == BoundVars.Count;
+
+
+    public ForeachLoopStmt(IToken tok, IToken endTok, List<BoundVar> boundVars, Attributes attrs, Expression range, 
+        List<AttributedExpression> invariants, Specification<Expression> decreases, Specification<FrameExpression> mod, 
+        BlockStmt /*?*/ body)
+        : base(tok, endTok, invariants, decreases, mod, body, attrs) {
+      // TODO: double check these
+      Contract.Requires(tok != null);
+      Contract.Requires(endTok != null);
+      Contract.Requires(cce.NonNullElements(boundVars));
+      Contract.Requires(range != null);
+      Contract.Requires(boundVars.Count != 0 || LiteralExpr.IsTrue(range));
+      this.BoundVars = boundVars;
+      this.Range = range;
+    }
+    
+    public List<BoundVar> UnenumerableBoundVars() {
+      Contract.Ensures(Contract.Result<List<BoundVar>>() != null);
+      var v = ComprehensionExpr.BoundedPool.PoolVirtues.Enumerable;
+      return ComprehensionExpr.BoundedPool.MissingBounds(BoundVars, Bounds, v);
+    }
+    
+    public List<BoundVar> InfiniteBoundVars() {
+      Contract.Ensures(Contract.Result<List<BoundVar>>() != null);
+      var v = ComprehensionExpr.BoundedPool.PoolVirtues.Finite;
+      return ComprehensionExpr.BoundedPool.MissingBounds(BoundVars, Bounds, v);
+    }
+  }
+
   public class AlternativeLoopStmt : LoopStmt {
     public readonly bool UsesOptionalBraces;
     public readonly List<GuardedAlternative> Alternatives;
@@ -11904,10 +11939,8 @@ namespace Microsoft.Dafny {
     }
   }
 
-  public class SetComprehension : ComprehensionExpr {
-    public override string WhatKind => "set comprehension";
-
-    public readonly bool Finite;
+  public class CollectionComprehension : ComprehensionExpr {
+    public virtual bool Finite => true;
     public readonly bool TermIsImplicit;  // records the given syntactic form
     public bool TermIsSimple {
       get {
@@ -11919,7 +11952,7 @@ namespace Microsoft.Dafny {
       }
     }
 
-    public SetComprehension(IToken tok, IToken endTok, bool finite, List<BoundVar> bvars, Expression range, Expression/*?*/ term, Attributes attrs)
+    public CollectionComprehension(IToken tok, IToken endTok, List<BoundVar> bvars, Expression range, Expression/*?*/ term, Attributes attrs)
       : base(tok, endTok, bvars, range, term ?? new IdentifierExpr(tok, bvars[0].Name), attrs) {
       Contract.Requires(tok != null);
       Contract.Requires(cce.NonNullElements(bvars));
@@ -11928,9 +11961,31 @@ namespace Microsoft.Dafny {
       Contract.Requires(term != null || bvars.Count == 1);
 
       TermIsImplicit = term == null;
-      Finite = finite;
     }
   }
+
+  public class SetComprehension : CollectionComprehension {
+    public override string WhatKind => "set comprehension";
+
+    public override bool Finite => finite;
+    private readonly bool finite;
+
+    public SetComprehension(IToken tok, IToken endTok, bool finite, List<BoundVar> bvars, Expression range, Expression /*?*/ term, Attributes attrs) 
+      : base(tok, endTok, bvars, range, term, attrs) {
+      this.finite = finite;
+    }
+  }
+
+  public class SeqComprehension : CollectionComprehension {
+    public override string WhatKind => "seq comprehension";
+    
+    public override bool Finite => true;
+    
+    public SeqComprehension(IToken tok, IToken endTok, List<BoundVar> bvars, Expression range, Expression/*?*/ term, Attributes attrs)
+      : base(tok, endTok, bvars, range, term, attrs) {
+    }
+  }
+  
   public class MapComprehension : ComprehensionExpr {
     public override string WhatKind => "map comprehension";
 

@@ -3332,7 +3332,7 @@ namespace Microsoft.Dafny.Compilers {
       EndStmt(wr);
     }
 
-    protected ConcreteSyntaxTree CompileGuardedLoops(List<BoundVar> bvs, List<ComprehensionExpr.BoundedPool> bounds, Expression range, ConcreteSyntaxTree wr) {
+    protected ConcreteSyntaxTree CompileGuardedLoops(List<QuantifiedVar> bvs, List<ComprehensionExpr.BoundedPool> bounds, Expression range, ConcreteSyntaxTree wr) {
       var n = bvs.Count;
       Contract.Assert(bounds.Count == n);
       for (int i = 0; i < n; i++) {
@@ -3476,7 +3476,7 @@ namespace Microsoft.Dafny.Compilers {
       TrAssignSuchThat(ivars, exists.Term, exists.Bounds, exists.tok.line, wr, false);
     }
 
-    private bool CanSequentializeForall(List<BoundVar> bvs, List<ComprehensionExpr.BoundedPool> bounds, Expression range, Expression lhs, Expression rhs) {
+    private bool CanSequentializeForall(List<QuantifiedVar> bvs, List<ComprehensionExpr.BoundedPool> bounds, Expression range, Expression lhs, Expression rhs) {
       // Given a statement
       //
       //   forall i, ... | R {

@@ -284,13 +284,13 @@ namespace Microsoft.Dafny {
       // forall x0,x1,x2 :: f.reads(x0,x1,x2) == {}
       // OR
       // forall x0,x1,x2 :: f.requires(x0,x1,x2)
-      var bvs = new List<BoundVar>();
+      var qvs = new List<QuantifiedVar>();
       var args = new List<Expression>();
       var bounds = new List<ComprehensionExpr.BoundedPool>();
       for (int i = 0; i < tps.Count - 1; i++) {
-        var bv = new BoundVar(tok, "x" + i, new UserDefinedType(tps[i]));
-        bvs.Add(bv);
-        args.Add(new IdentifierExpr(tok, bv));
+        var qv = new QuantifiedVar(tok, "x" + i, new UserDefinedType(tps[i]), null, null);
+        qvs.Add(qv);
+        args.Add(new IdentifierExpr(tok, qv));
         bounds.Add(new ComprehensionExpr.SpecialAllocIndependenceAllocatedBoundedPool());
       }
       var fn = new MemberSelectExpr(tok, f, member.Name) {
@@ -307,7 +307,7 @@ namespace Microsoft.Dafny {
         body = Expression.CreateEq(body, emptySet, member.ResultType);
       }
       if (tps.Count > 1) {
-        body = new ForallExpr(tok, endTok, bvs, null, body, null) { Type = Type.Bool, Bounds = bounds };
+        body = new ForallExpr(tok, endTok, qvs, body, null) { Type = Type.Bool, Bounds = bounds };
       }
       return body;
     }
@@ -8397,7 +8397,7 @@ namespace Microsoft.Dafny {
   }
 
   public class ForallStmt : Statement {
-    public readonly List<BoundVar> BoundVars;  // note, can be the empty list, in which case Range denotes "true"
+    public readonly List<QuantifiedVar> BoundVars;  // note, can be the empty list, in which case Range denotes "true"
     public Expression Range;  // mostly readonly, except that it may in some cases be updated during resolution to conjoin the precondition of the call in the body
     public readonly List<AttributedExpression> Ens;
     public readonly Statement Body;
@@ -8435,16 +8435,13 @@ namespace Microsoft.Dafny {
       Contract.Invariant(Ens != null);
     }
 
-    public ForallStmt(IToken tok, IToken endTok, List<BoundVar> boundVars, Attributes attrs, Expression range, List<AttributedExpression> ens, Statement body)
+    public ForallStmt(IToken tok, IToken endTok, List<QuantifiedVar> boundVars, Attributes attrs, List<AttributedExpression> ens, Statement body)
       : base(tok, endTok, attrs) {
       Contract.Requires(tok != null);
       Contract.Requires(endTok != null);
       Contract.Requires(cce.NonNullElements(boundVars));
-      Contract.Requires(range != null);
-      Contract.Requires(boundVars.Count != 0 || LiteralExpr.IsTrue(range));
       Contract.Requires(cce.NonNullElements(ens));
       this.BoundVars = boundVars;
-      this.Range = range;
       this.Ens = ens;
       this.Body = body;
     }
@@ -9801,7 +9798,7 @@ namespace Microsoft.Dafny {
       Contract.Requires(expr != null);
 
       ResolvedCloner cloner = new ResolvedCloner();
-      var newVars = expr.BoundVars.ConvertAll(cloner.CloneBoundVar);
+      var newVars = expr.BoundVars.ConvertAll(cloner.CloneQuantifiedVar);
 
       if (body == null) {
         body = expr.Term;
@@ -11504,7 +11501,7 @@ namespace Microsoft.Dafny {
   /// </summary>
   public abstract class ComprehensionExpr : Expression, IAttributeBearingDeclaration, IBoundVarsBearingExpression {
     public virtual string WhatKind => "comprehension";
-    public readonly List<BoundVar> BoundVars;
+    public readonly List<QuantifiedVar> BoundVars;
     public readonly Expression Range;
     private Expression term;
     public Expression Term { get { return term; } }
@@ -11829,14 +11826,13 @@ namespace Microsoft.Dafny {
       return ComprehensionExpr.BoundedPool.MissingBounds(BoundVars, Bounds, v);
     }
 
-    public ComprehensionExpr(IToken tok, IToken endTok, List<BoundVar> bvars, Expression range, Expression term, Attributes attrs)
+    public ComprehensionExpr(IToken tok, IToken endTok, List<QuantifiedVar> qvars, Expression term, Attributes attrs)
       : base(tok) {
       Contract.Requires(tok != null);
-      Contract.Requires(cce.NonNullElements(bvars));
+      Contract.Requires(cce.NonNullElements(qvars));
       Contract.Requires(term != null);
 
-      this.BoundVars = bvars;
-      this.Range = range;
+      this.BoundVars = qvars;
       this.UpdateTerm(term);
       this.Attributes = attrs;
       this.BodyStartTok = tok;
@@ -11906,10 +11902,10 @@ namespace Microsoft.Dafny {
       cp.Parent = this;
       return cp;
     }
-    public QuantifierExpr(IToken tok, IToken endTok, List<BoundVar> bvars, Expression range, Expression term, Attributes attrs)
-      : base(tok, endTok, bvars, range, term, attrs) {
+    public QuantifierExpr(IToken tok, IToken endTok, List<QuantifiedVar> qvars, Expression term, Attributes attrs)
+      : base(tok, endTok, qvars, term, attrs) {
       Contract.Requires(tok != null);
-      Contract.Requires(cce.NonNullElements(bvars));
+      Contract.Requires(cce.NonNullElements(qvars));
       Contract.Requires(term != null);
       this.UniqueId = FreshQuantId();
     }
@@ -11942,9 +11938,9 @@ namespace Microsoft.Dafny {
     public override string WhatKind => "forall expression";
     protected override BinaryExpr.ResolvedOpcode SplitResolvedOp { get { return BinaryExpr.ResolvedOpcode.And; } }
 
-    public ForallExpr(IToken tok, IToken endTok, List<BoundVar> bvars, Expression range, Expression term, Attributes attrs)
-      : base(tok, endTok, bvars, range, term, attrs) {
-      Contract.Requires(cce.NonNullElements(bvars));
+    public ForallExpr(IToken tok, IToken endTok, List<QuantifiedVar> qvars, Expression term, Attributes attrs)
+      : base(tok, endTok, qvars, term, attrs) {
+      Contract.Requires(cce.NonNullElements(qvars));
       Contract.Requires(tok != null);
       Contract.Requires(term != null);
     }
@@ -11963,8 +11959,8 @@ namespace Microsoft.Dafny {
     public override string WhatKind => "exists expression";
     protected override BinaryExpr.ResolvedOpcode SplitResolvedOp { get { return BinaryExpr.ResolvedOpcode.Or; } }
 
-    public ExistsExpr(IToken tok, IToken endTok, List<BoundVar> bvars, Expression range, Expression term, Attributes attrs)
-      : base(tok, endTok, bvars, range, term, attrs) {
+    public ExistsExpr(IToken tok, IToken endTok, List<QuantifiedVar> bvars, Expression term, Attributes attrs)
+      : base(tok, endTok, bvars, term, attrs) {
       Contract.Requires(cce.NonNullElements(bvars));
       Contract.Requires(tok != null);
       Contract.Requires(term != null);
@@ -11995,13 +11991,12 @@ namespace Microsoft.Dafny {
       }
     }
 
-    public SetComprehension(IToken tok, IToken endTok, bool finite, List<BoundVar> bvars, Expression range, Expression/*?*/ term, Attributes attrs)
-      : base(tok, endTok, bvars, range, term ?? new IdentifierExpr(tok, bvars[0].Name), attrs) {
+    public SetComprehension(IToken tok, IToken endTok, bool finite, List<QuantifiedVar> qvars, Expression/*?*/ term, Attributes attrs)
+      : base(tok, endTok, qvars, term ?? new IdentifierExpr(tok, qvars[0].Name), attrs) {
       Contract.Requires(tok != null);
-      Contract.Requires(cce.NonNullElements(bvars));
-      Contract.Requires(1 <= bvars.Count);
-      Contract.Requires(range != null);
-      Contract.Requires(term != null || bvars.Count == 1);
+      Contract.Requires(cce.NonNullElements(qvars));
+      Contract.Requires(1 <= qvars.Count);
+      Contract.Requires(term != null || qvars.Count == 1);
 
       TermIsImplicit = term == null;
       Finite = finite;
@@ -12015,14 +12010,13 @@ namespace Microsoft.Dafny {
 
     public List<Boogie.Function> ProjectionFunctions;  // filled in during translation (and only for general map comprehensions where "TermLeft != null")
 
-    public MapComprehension(IToken tok, IToken endTok, bool finite, List<BoundVar> bvars, Expression range, Expression/*?*/ termLeft, Expression termRight, Attributes attrs)
-      : base(tok, endTok, bvars, range, termRight, attrs) {
+    public MapComprehension(IToken tok, IToken endTok, bool finite, List<QuantifiedVar> qvars, Expression/*?*/ termLeft, Expression termRight, Attributes attrs)
+      : base(tok, endTok, qvars, termRight, attrs) {
       Contract.Requires(tok != null);
-      Contract.Requires(cce.NonNullElements(bvars));
-      Contract.Requires(1 <= bvars.Count);
-      Contract.Requires(range != null);
+      Contract.Requires(cce.NonNullElements(qvars));
+      Contract.Requires(1 <= qvars.Count);
       Contract.Requires(termRight != null);
-      Contract.Requires(termLeft != null || bvars.Count == 1);
+      Contract.Requires(termLeft != null || qvars.Count == 1);
 
       Finite = finite;
       TermLeft = termLeft;

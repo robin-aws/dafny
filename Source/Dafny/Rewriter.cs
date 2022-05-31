@@ -195,7 +195,7 @@ namespace Microsoft.Dafny {
               term = new BinaryExpr(s.Tok, BinaryExpr.ResolvedOpcode.And, term, s.Ens[i].E);
             }
             List<Expression> exprList = new List<Expression>();
-            ForallExpr expr = new ForallExpr(s.Tok, s.EndTok, s.BoundVars, s.Range, term, s.Attributes);
+            ForallExpr expr = new ForallExpr(s.Tok, s.EndTok, s.BoundVars, term, s.Attributes);
             expr.Type = Type.Bool; // resolve here
             expr.Bounds = s.Bounds;
             exprList.Add(expr);

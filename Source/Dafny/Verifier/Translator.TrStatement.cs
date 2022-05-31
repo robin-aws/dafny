@@ -1934,7 +1934,7 @@ namespace Microsoft.Dafny {
       }
     }
 
-    void TrForallStmtCall(IToken tok, List<BoundVar> boundVars, List<ComprehensionExpr.BoundedPool> bounds,
+    void TrForallStmtCall(IToken tok, List<QuantifiedVar> boundVars, List<ComprehensionExpr.BoundedPool> bounds,
       Expression range, ExpressionConverter additionalRange, List<Expression> forallExpressions, CallStmt s0,
       BoogieStmtListBuilder definedness, BoogieStmtListBuilder exporter, List<Variable> locals, ExpressionTranslator etran) {
       Contract.Requires(tok != null);

@@ -3224,7 +3224,7 @@ Guard<out Expression e>   /* null represents demonic-choice */
 
 /*------------------------------------------------------------------------*/
 BindingGuard<out Expression e, bool allowLambda>
-= (. var bvars = new List<BoundVar>();
+= (. var qvars = new List<QuantifiedVar>();
      BoundVar bv;  IToken x;
      Attributes attrs = null;
      Expression body;
@@ -3236,7 +3236,7 @@ BindingGuard<out Expression e, bool allowLambda>
   { Attribute<ref attrs> }
   ":|"
   Expression<out body, true, allowLambda>
-  (. e = new ExistsExpr(x, t, bvars, null, body, attrs); .)
+  (. e = new ExistsExpr(x, t, bvars, body, attrs); .)
   .
 
 
@@ -3421,9 +3421,8 @@ RevealStmt<out Statement s>
 ForallStmt<out Statement/*!*/ s>
 = (. Contract.Ensures(Contract.ValueAtReturn(out s) != null);
      IToken/*!*/ x = Token.NoToken;
-     List<BoundVar> bvars = null;
+     List<QuantifiedVar> qvars = null;
      Attributes qattrs = null;
-     Expression range = null;
      var ens = new List<AttributedExpression/*!*/>();
      BlockStmt block = null;
      IToken bodyStart, bodyEnd;
@@ -3432,14 +3431,11 @@ ForallStmt<out Statement/*!*/ s>
   "forall"                                  (. x = t; tok = x; .)
 
   ( IF(la.kind == _openparen)  /* disambiguation needed, because of the possibility of a body-less forall statement */
-    "(" [ QuantifierDomain<out bvars, out qattrs, out range, true, true, true> ] ")"
+    "(" [ QuantifierDomain<out qvars, out qattrs, true, true, true> ] ")"
   |     [ IF(IsIdentifier(la.kind))  /* disambiguation needed, because of the possibility of a body-less forall statement */
-          QuantifierDomain<out bvars, out qattrs, out range, true, true, true>
+          QuantifierDomain<out qvars, out qattrs, true, true, true>
         ]
   )
-  (. if (bvars == null) { bvars = new List<BoundVar>(); }
-     if (range == null) { range = new LiteralExpr(x, true); }
-  .)
 
   {
     EnsuresClause<ens, true>
@@ -3454,7 +3450,7 @@ ForallStmt<out Statement/*!*/ s>
      if (block != null) {
         tok = block.EndTok;
      }
-     s = new ForallStmt(x, tok, bvars, qattrs, range, ens, block);
+     s = new ForallStmt(x, tok, qvars, qattrs, ens, block);
   .)
   .
 
@@ -4230,7 +4226,7 @@ MapLiteralExpressions<.out List<ExpressionPair> elements.>
 /*------------------------------------------------------------------------*/
 MapComprehensionExpr<out Expression e, bool allowLemma, bool allowLambda, bool allowBitwiseOps>
 = (. Contract.Ensures(Contract.ValueAtReturn(out e) != null);
-     List<BoundVar> bvars = new List<BoundVar>();
+     List<QuantifiedVar> qvars = null;
      Expression range = null;
      Expression bodyLeft = null;
      Expression bodyRight;
@@ -4238,17 +4234,17 @@ MapComprehensionExpr<out Expression e, bool allowLemma, bool allowLambda, bool a
      bool finite = true;
   .)
   ( "map" | "imap" (. finite = false; .) )     (. IToken mapToken = t; .)
-  QuantifierDomain<out bvars, out attrs, out range, allowLemma, allowLambda, allowBitwiseOps>
+  QuantifierDomain<out qvars, out attrs, allowLemma, allowLambda, allowBitwiseOps>
   QSep
   Expression<out bodyRight, allowLemma, allowLambda, allowBitwiseOps>
   [ IF(IsGets())  /* greedily parse ":=" */    (. bodyLeft = bodyRight; .)
     ":=" Expression<out bodyRight, allowLemma, allowLambda, allowBitwiseOps || !finite>
   ]
-  (. if (bodyLeft == null && bvars.Count != 1) {
+  (. if (bodyLeft == null && qvars.Count != 1) {
        SemErr(t, "a map comprehension with more than one bound variable must have a term expression of the form 'Expr := Expr'");
        e = dummyExpr;
      } else {
-       e = new MapComprehension(mapToken, t, finite, bvars, range ?? new LiteralExpr(mapToken, true), bodyLeft, bodyRight, attrs);
+       e = new MapComprehension(mapToken, t, finite, qvars, bodyLeft, bodyRight, attrs);
      }
   .)
   .
@@ -4707,7 +4703,7 @@ QuantifierExpression<out Expression q, bool allowLemma, bool allowLambda>
 = (. Contract.Ensures(Contract.ValueAtReturn(out q) != null);
      IToken/*!*/ x = Token.NoToken;
      bool univ = false;
-     List<BoundVar/*!*/> bvars;
+     List<QuantifiedVar/*!*/> qvars;
      Attributes attrs;
      Expression range;
      Expression/*!*/ body;
@@ -4715,31 +4711,29 @@ QuantifierExpression<out Expression q, bool allowLemma, bool allowLambda>
   ( Forall                                     (. x = t;  univ = true; .)
   | Exists                                     (. x = t; .)
   )
-  QuantifierDomain<out bvars, out attrs, out range, allowLemma, allowLambda, true>
+  QuantifierDomain<out qvars, out attrs, allowLemma, allowLambda, true>
   QSep
   Expression<out body, allowLemma, allowLambda>
   (. if (univ) {
-       q = new ForallExpr(x, t, bvars, range, body, attrs);
+       q = new ForallExpr(x, t, qvars, body, attrs);
      } else {
-       q = new ExistsExpr(x, t, bvars, range, body, attrs);
+       q = new ExistsExpr(x, t, qvars, body, attrs);
      }
   .)
   .
 
 /*------------------------------------------------------------------------*/
-QuantifierDomain<.out List<BoundVar> bvars, out Attributes attrs, out Expression range, bool allowLemma, bool allowLambda, bool allowBitwiseOps.>
+QuantifierDomain<.out List<QuantifiedVar> qvars, out Attributes attrs, bool allowLemma, bool allowLambda, bool allowBitwiseOps.>
 = (.
-     List<QuantifiedVar> qvars = new List<QuantifiedVar>();
+     qvars = new List<QuantifiedVar>();
      QuantifiedVar/*!*/ qv;
      attrs = null;
-     range = null;
   .)
   QuantifierVariableDecl<out qv, ref attrs, allowLemma, allowLambda, allowBitwiseOps>         (. qvars.Add(qv); .)
   { IF(IsQuantifierVariableDecl(qv))
     ","
     QuantifierVariableDecl<out qv, ref attrs, allowLemma, allowLambda, allowBitwiseOps>       (. qvars.Add(qv); .)
   }
-  (. QuantifiedVar.ExtractSingleRange(qvars, out bvars, out range); .)
   .
   
 /*------------------------------------------------------------------------*/
@@ -4771,23 +4765,22 @@ QuantifierVariableDecl<.out QuantifiedVar qvar, ref Attributes attrs, bool allow
 /*------------------------------------------------------------------------*/
 SetComprehensionExpr<out Expression q, bool allowLemma, bool allowLambda, bool allowBitwiseOps>
 = (. Contract.Ensures(Contract.ValueAtReturn(out q) != null);
-     List<BoundVar/*!*/> bvars = new List<BoundVar>();
-     Expression range;
+     List<QuantifiedVar/*!*/> qvars = null;
      Expression body = null;
      Attributes attrs = null;
      bool finite = true;
   .)
   ( "set" | "iset" (. finite = false; .) )     (. IToken setToken = t; .)
-  QuantifierDomain<out bvars, out attrs, out range, allowLemma, allowLambda, allowBitwiseOps>
+  QuantifierDomain<out qvars, out attrs, allowLemma, allowLambda, allowBitwiseOps>
   [ IF(IsQSep())  /* let any given body bind to the closest enclosing set comprehension */
     QSep
     Expression<out body, allowLemma, allowLambda, allowBitwiseOps || !finite>
   ]
-  (. if (body == null && bvars.Count != 1) {
+  (. if (body == null && qvars.Count != 1) {
        SemErr(t, "a set comprehension with more than one bound variable must have a term expression");
        q = dummyExpr;
      } else {
-       q = new SetComprehension(setToken, t, finite, bvars, range, body, attrs);
+       q = new SetComprehension(setToken, t, finite, qvars, body, attrs);
      }
   .)
   .

@@ -1332,7 +1332,7 @@ namespace Microsoft.Dafny {
           wr.Write("forall");
           if (s.BoundVars.Count != 0) {
             wr.Write(" ");
-            PrintQuantifierDomain(s.BoundVars, s.Attributes, s.Range);
+            PrintQuantifierDomain(s.BoundVars, s.Attributes);
           }
           PrintSpec("ensures", s.Ens, indent + IndentAmount);
           if (s.Body != null) {
@@ -1845,7 +1845,7 @@ namespace Microsoft.Dafny {
     void PrintBindingGuard(ExistsExpr guard) {
       Contract.Requires(guard != null);
       Contract.Requires(guard.Range == null);
-      PrintQuantifierDomain(guard.BoundVars, guard.Attributes, null);
+      PrintQuantifierDomain(guard.BoundVars, guard.Attributes);
       wr.Write(" :| ");
       PrintExpression(guard.Term, false);
     }
@@ -2609,7 +2609,7 @@ namespace Microsoft.Dafny {
         if (parensNeeded) { wr.Write("("); }
         wr.Write(e is ForallExpr ? "forall" : "exists");
         wr.Write(" ");
-        PrintQuantifierDomain(e.BoundVars, e.Attributes, e.Range);
+        PrintQuantifierDomain(e.BoundVars, e.Attributes);
         if (keyword == null) {
           wr.Write(" :: ");
         } else {
@@ -2877,19 +2877,24 @@ namespace Microsoft.Dafny {
     }
 
 
-    private void PrintQuantifierDomain(List<BoundVar> boundVars, Attributes attrs, Expression range) {
-      Contract.Requires(boundVars != null);
+    private void PrintQuantifierDomain(List<QuantifiedVar> quantifiedVars, Attributes attrs) {
+      Contract.Requires(quantifiedVars != null);
       string sep = "";
-      foreach (BoundVar bv in boundVars) {
-        wr.Write("{0}{1}", sep, bv.DisplayName);
-        PrintType(": ", bv.Type);
+      foreach (QuantifiedVar qv in quantifiedVars) {
+        wr.Write("{0}{1}", sep, qv.DisplayName);
+        PrintType(": ", qv.Type);
+        if (qv.Domain != null) {
+          wr.Write(" <- ");
+          PrintExpression(qv.Domain, false);
+        }
+        if (qv.Range != null) {
+          wr.Write(" | ");
+          PrintExpression(qv.Range, false);
+        }
         sep = ", ";
       }
+      // TODO: Attach attributes to QuantifiedVar instead?
       PrintAttributes(attrs);
-      if (range != null) {
-        wr.Write(" | ");
-        PrintExpression(range, false);
-      }
     }
 
     void PrintActualArguments(ActualBindings bindings, string/*?*/ name, Bpl.IToken/*?*/ atLabel) {

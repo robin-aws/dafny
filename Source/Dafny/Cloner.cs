@@ -208,6 +208,12 @@ namespace Microsoft.Dafny {
       bvNew.IsGhost = bv.IsGhost;
       return bvNew;
     }
+    
+    public virtual QuantifiedVar CloneQuantifiedVar(QuantifiedVar bv) {
+      var qvNew = new QuantifiedVar(Tok(bv.tok), bv.Name, CloneType(bv.SyntacticType), CloneExpr(bv.Domain), CloneExpr(bv.Range));
+      qvNew.IsGhost = bv.IsGhost;
+      return qvNew;
+    }
 
     public VT CloneIVariable<VT>(VT v) where VT : IVariable {
       var iv = (IVariable)v;
@@ -418,25 +424,24 @@ namespace Microsoft.Dafny {
         var e = (ComprehensionExpr)expr;
         var tk = Tok(e.tok);
         var tkEnd = Tok(e.BodyEndTok);
-        var bvs = e.BoundVars.ConvertAll(CloneBoundVar);
-        var range = CloneExpr(e.Range);
+        var bvs = e.BoundVars.ConvertAll(CloneQuantifiedVar);
         var term = CloneExpr(e.Term);
         if (e is QuantifierExpr q) {
           if (e is ForallExpr) {
-            return new ForallExpr(tk, q.BodyEndTok, bvs, range, term, CloneAttributes(e.Attributes));
+            return new ForallExpr(tk, q.BodyEndTok, bvs, term, CloneAttributes(e.Attributes));
           } else if (e is ExistsExpr) {
-            return new ExistsExpr(tk, q.BodyEndTok, bvs, range, term, CloneAttributes(e.Attributes));
+            return new ExistsExpr(tk, q.BodyEndTok, bvs, term, CloneAttributes(e.Attributes));
           } else {
             Contract.Assert(false); throw new cce.UnreachableException();  // unexpected quantifier expression
           }
         } else if (e is MapComprehension mc) {
-          return new MapComprehension(tk, tkEnd, mc.Finite, bvs, range, mc.TermLeft == null ? null : CloneExpr(mc.TermLeft), term, CloneAttributes(e.Attributes));
+          return new MapComprehension(tk, tkEnd, mc.Finite, bvs, mc.TermLeft == null ? null : CloneExpr(mc.TermLeft), term, CloneAttributes(e.Attributes));
         } else if (e is LambdaExpr l) {
-          return new LambdaExpr(tk, tkEnd, bvs, range, l.Reads.ConvertAll(CloneFrameExpr), term);
+          return new LambdaExpr(tk, tkEnd, bvs, l.Reads.ConvertAll(CloneFrameExpr), term);
         } else {
           Contract.Assert(e is SetComprehension);
           var tt = (SetComprehension)e;
-          return new SetComprehension(tk, tkEnd, tt.Finite, bvs, range, tt.TermIsImplicit ? null : term, CloneAttributes(e.Attributes));
+          return new SetComprehension(tk, tkEnd, tt.Finite, bvs, tt.TermIsImplicit ? null : term, CloneAttributes(e.Attributes));
         }
 
       } else if (expr is WildcardExpr) {
@@ -1398,6 +1403,13 @@ namespace Microsoft.Dafny {
       var bvNew = new BoundVar(Tok(bv.tok), bv.Name, CloneType(bv.Type));
       bvNew.IsGhost = bv.IsGhost;
       return bvNew;
+    }
+    
+    public override QuantifiedVar CloneQuantifiedVar(QuantifiedVar bv) {
+      // The difference here from the overridden method is that we do CloneType(bv.Type) instead of CloneType(bv.SyntacticType)
+      var qvNew = new QuantifiedVar(Tok(bv.tok), bv.Name, CloneType(bv.Type), CloneExpr(bv.Domain), CloneExpr(bv.Range));
+      qvNew.IsGhost = bv.IsGhost;
+      return qvNew;
     }
   }
 

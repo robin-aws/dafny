@@ -3229,14 +3229,14 @@ BindingGuard<out Expression e, bool allowLambda>
      Attributes attrs = null;
      Expression body;
   .)
-  IdentTypeOptional<out bv>                    (. bvars.Add(bv); x = bv.tok; .)
+  IdentTypeOptional<out bv>                    (. qvars.Add(bv.ToQuantifiedVar()); x = bv.tok; .)
   { ","
-    IdentTypeOptional<out bv>                  (. bvars.Add(bv); .)
+    IdentTypeOptional<out bv>                  (. qvars.Add(bv.ToQuantifiedVar()); .)
   }
   { Attribute<ref attrs> }
   ":|"
   Expression<out body, true, allowLambda>
-  (. e = new ExistsExpr(x, t, bvars, body, attrs); .)
+  (. e = new ExistsExpr(x, t, qvars, body, attrs); .)
   .
 
 

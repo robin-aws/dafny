@@ -1332,7 +1332,7 @@ namespace Microsoft.Dafny {
           wr.Write("forall");
           if (s.BoundVars.Count != 0) {
             wr.Write(" ");
-            PrintQuantifierDomain(s.BoundVars, s.Attributes);
+            PrintQuantifierDomain(s.QuantifiedVars, s.Attributes);
           }
           PrintSpec("ensures", s.Ens, indent + IndentAmount);
           if (s.Body != null) {

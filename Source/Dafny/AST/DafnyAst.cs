@@ -6126,6 +6126,10 @@ namespace Microsoft.Dafny {
       Contract.Requires(name != null);
       Contract.Requires(type != null);
     }
+
+    public QuantifiedVar ToQuantifiedVar() {
+      return new QuantifiedVar(tok, Name, SyntacticType, null, null);
+    }
   }
 
   [DebuggerDisplay("Quantified<{name}>")]
@@ -8397,7 +8401,8 @@ namespace Microsoft.Dafny {
   }
 
   public class ForallStmt : Statement {
-    public readonly List<QuantifiedVar> BoundVars;  // note, can be the empty list, in which case Range denotes "true"
+    public readonly List<QuantifiedVar> QuantifiedVars;  // note, can be the empty list, in which case Range denotes "true"
+    public readonly List<BoundVar> BoundVars;  // note, can be the empty list, in which case Range denotes "true"
     public Expression Range;  // mostly readonly, except that it may in some cases be updated during resolution to conjoin the precondition of the call in the body
     public readonly List<AttributedExpression> Ens;
     public readonly Statement Body;
@@ -8435,13 +8440,13 @@ namespace Microsoft.Dafny {
       Contract.Invariant(Ens != null);
     }
 
-    public ForallStmt(IToken tok, IToken endTok, List<QuantifiedVar> boundVars, Attributes attrs, List<AttributedExpression> ens, Statement body)
+    public ForallStmt(IToken tok, IToken endTok, List<QuantifiedVar> quantifiedVars, Attributes attrs, List<AttributedExpression> ens, Statement body)
       : base(tok, endTok, attrs) {
       Contract.Requires(tok != null);
       Contract.Requires(endTok != null);
-      Contract.Requires(cce.NonNullElements(boundVars));
+      Contract.Requires(cce.NonNullElements(quantifiedVars));
       Contract.Requires(cce.NonNullElements(ens));
-      this.BoundVars = boundVars;
+      this.QuantifiedVars = quantifiedVars;
       this.Ens = ens;
       this.Body = body;
     }
@@ -9798,7 +9803,7 @@ namespace Microsoft.Dafny {
       Contract.Requires(expr != null);
 
       ResolvedCloner cloner = new ResolvedCloner();
-      var newVars = expr.BoundVars.ConvertAll(cloner.CloneQuantifiedVar);
+      var newVars = expr.BoundVars.ConvertAll(cloner.CloneBoundVar);
 
       if (body == null) {
         body = expr.Term;
@@ -11501,8 +11506,9 @@ namespace Microsoft.Dafny {
   /// </summary>
   public abstract class ComprehensionExpr : Expression, IAttributeBearingDeclaration, IBoundVarsBearingExpression {
     public virtual string WhatKind => "comprehension";
-    public readonly List<QuantifiedVar> BoundVars;
-    public readonly Expression Range;
+    public readonly List<BoundVar> BoundVars;
+    public List<QuantifiedVar> QuantifiedVars;
+    public Expression Range;
     private Expression term;
     public Expression Term { get { return term; } }
     public IEnumerable<BoundVar> AllBoundVars => BoundVars;
@@ -11832,7 +11838,7 @@ namespace Microsoft.Dafny {
       Contract.Requires(cce.NonNullElements(qvars));
       Contract.Requires(term != null);
 
-      this.BoundVars = qvars;
+      this.QuantifiedVars = qvars;
       this.UpdateTerm(term);
       this.Attributes = attrs;
       this.BodyStartTok = tok;

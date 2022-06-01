@@ -44,7 +44,7 @@ namespace Microsoft.Dafny {
           return e;
         }
 
-        var newBoundVars = new List<BoundVar>(e.BoundVars);
+        var newBoundVars = new List<QuantifiedVar>(e.BoundVars);
         if (newBounds == null) {
           newBounds = new List<ComprehensionExpr.BoundedPool>();
         } else if (newBounds == e.Bounds) {
@@ -56,7 +56,7 @@ namespace Microsoft.Dafny {
         foreach (var entry in usedSubstMap) {
           var eq = new BinaryExpr(e.tok, BinaryExpr.ResolvedOpcode.EqCommon, entry.Item2, entry.Item1);
           newRange = newRange == null ? eq : new BinaryExpr(e.tok, BinaryExpr.ResolvedOpcode.And, eq, newRange);
-          newBoundVars.Add((BoundVar)entry.Item2.Var);
+          newBoundVars.Add((QuantifiedVar)entry.Item2.Var);
           newBounds.Add(new ComprehensionExpr.ExactBoundedPool(entry.Item1));
         }
 

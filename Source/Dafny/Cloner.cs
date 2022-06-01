@@ -630,7 +630,7 @@ namespace Microsoft.Dafny {
 
       } else if (stmt is ForallStmt) {
         var s = (ForallStmt)stmt;
-        r = new ForallStmt(Tok(s.Tok), Tok(s.EndTok), s.BoundVars.ConvertAll(CloneBoundVar), null, CloneExpr(s.Range), s.Ens.ConvertAll(CloneAttributedExpr), CloneStmt(s.Body));
+        r = new ForallStmt(Tok(s.Tok), Tok(s.EndTok), s.BoundVars.ConvertAll(CloneQuantifiedVar), null, s.Ens.ConvertAll(CloneAttributedExpr), CloneStmt(s.Body));
       } else if (stmt is CalcStmt) {
         var s = (CalcStmt)stmt;
         // calc statements have the unusual property that the last line is duplicated.  If that is the case (which

@@ -273,7 +273,7 @@ namespace Microsoft.Dafny {
           return Substitute(q.SplitQuantifierExpression);
         }
 
-        var newBoundVars = CreateBoundVarSubstitutions(e.BoundVars, expr is ForallExpr || expr is ExistsExpr || expr is SetComprehension);
+        var newBoundVars = CreateBoundVarSubstitutions(e.BoundVars, expr is ForallExpr || expr is ExistsExpr || expr is CollectionComprehension);
         var newRange = e.Range == null ? null : Substitute(e.Range);
         var newTerm = Substitute(e.Term);
         var newAttrs = SubstAttributes(e.Attributes);
@@ -484,13 +484,20 @@ namespace Microsoft.Dafny {
           newBoundVars.Add(bv);
         } else {
           anythingChanged = true;
-          var newBv = new BoundVar(bv.tok, bv.Name, tt);
-          newBoundVars.Add(newBv);
+
+          var newDomain = bv.Domain == null ? null : Substitute(bv.Domain);
+          
           // update substMap to reflect the new BoundVar substitutions
-          var ie = new IdentifierExpr(newBv.tok, newBv.Name);
+          var ie = new IdentifierExpr(bv.tok, bv.Name);
+          substMap.Add(bv, ie);
+          
+          var newRange = bv.Range == null ? null : Substitute(bv.Range);
+          
+          var newBv = new BoundVar(bv.tok, bv.Name, tt, newDomain, newRange);
+          newBoundVars.Add(newBv);
+          
           ie.Var = newBv;  // resolve here
           ie.Type = newBv.Type;  // resolve here
-          substMap.Add(bv, ie);
         }
       }
       return anythingChanged ? newBoundVars : vars;
@@ -548,12 +555,19 @@ namespace Microsoft.Dafny {
         var bv = pat.Var;
         var tt = Resolver.SubstType(bv.Type, typeMap);
         if (forceSubstitutionOfBoundVars || tt != bv.Type) {
-          var newBv = new BoundVar(pat.tok, pat.Id, tt);
+          var newDomain = bv.Domain == null ? null : Substitute(bv.Domain);
+          
           // update substMap to reflect the new BoundVar substitutions
-          var ie = new IdentifierExpr(newBv.tok, newBv.Name);
+          var ie = new IdentifierExpr(pat.tok, pat.Id);
+          substMap.Add(bv, ie);
+          
+          var newRange = bv.Range == null ? null : Substitute(bv.Range);
+          
+          var newBv = new BoundVar(pat.tok, pat.Id, tt, newDomain, newRange);
+          
           ie.Var = newBv;  // resolve here
           ie.Type = newBv.Type;  // resolve here
-          substMap.Add(bv, ie);
+
           var newPat = new CasePattern<BoundVar>(pat.tok, newBv);
           newPat.AssembleExpr(null);
           return newPat;

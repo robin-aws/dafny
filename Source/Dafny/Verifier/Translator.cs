@@ -2680,7 +2680,7 @@ namespace Microsoft.Dafny {
         var kOffset = new MemberSelectExpr(pp.tok, k, program.BuiltIns.ORDINAL_Offset);
         var kIsPositive = Expression.CreateLess(Expression.CreateIntLiteral(pp.tok, 0), kOffset);
         var kIsLimit = Expression.CreateEq(Expression.CreateIntLiteral(pp.tok, 0), kOffset, Type.Int);
-        var kprimeVar = new BoundVar(pp.tok, "_k'", Type.BigOrdinal);
+        var kprimeVar = new BoundVar(pp.tok, "_k'", Type.BigOrdinal, null, null);
         var kprime = new IdentifierExpr(pp.tok, kprimeVar);
 
         var substMap = new Dictionary<IVariable, Expression>();
@@ -6784,7 +6784,7 @@ namespace Microsoft.Dafny {
       Contract.Ensures(Contract.ValueAtReturn(out bv) != null);
       Contract.Ensures(Contract.ValueAtReturn(out ie) != null);
 
-      bv = new BoundVar(tok, CurrentIdGenerator.FreshId(prefix), iv.Type); // use this temporary variable counter, but for a Dafny name (the idea being that the number and the initial "_" in the name might avoid name conflicts)
+      bv = new BoundVar(tok, CurrentIdGenerator.FreshId(prefix), iv.Type, null, null); // use this temporary variable counter, but for a Dafny name (the idea being that the number and the initial "_" in the name might avoid name conflicts)
       ie = new IdentifierExpr(tok, bv.Name);
       ie.Var = bv;  // resolve here
       ie.Type = bv.Type;  // resolve here
@@ -8567,16 +8567,25 @@ namespace Microsoft.Dafny {
       var substMap = new Dictionary<IVariable, Expression>();
       var var4var = new Dictionary<BoundVar, BoundVar>();
       var bvars = new List<BoundVar>();
+      // TODO: This might be wonky, probably should just call s.CreateBoundVarSubstitutions
+      var s = new Substituter(null, substMap, new Dictionary<TypeParameter, Type>());
       foreach (var bv in exists.BoundVars) {
-        var newBv = new BoundVar(bv.tok, prefix + bv.Name, bv.Type);
+        var newName = prefix + bv.Name;
+        
+        var newDomain = bv.Domain == null ? null : s.Substitute(bv.Domain);
+
+        var ie = new IdentifierExpr(bv.tok, newName);
+        substMap.Add(bv, ie);
+        
+        var newRange = bv.Range == null ? null : s.Substitute(bv.Range);
+                  
+        var newBv = new BoundVar(bv.tok, newName, bv.Type, newDomain, newRange);
         bvars.Add(newBv);
         var4var.Add(bv, newBv);
-        var ie = new IdentifierExpr(newBv.tok, newBv.Name);
+        
         ie.Var = newBv;  // resolve here
         ie.Type = newBv.Type;  // resolve here
-        substMap.Add(bv, ie);
       }
-      var s = new Substituter(null, substMap, new Dictionary<TypeParameter, Type>());
       var range = exists.Range == null ? null : s.Substitute(exists.Range);
       var term = s.Substitute(exists.Term);
       var attrs = s.SubstAttributes(exists.Attributes);
@@ -11335,7 +11344,7 @@ namespace Microsoft.Dafny {
           foreach (var n in inductionVariables) {
             toks.Add(n.tok);
             types.Add(n.Type.NormalizeExpandKeepConstraints());
-            BoundVar k = new BoundVar(n.tok, CurrentIdGenerator.FreshId(n.Name + "$ih#"), n.Type);
+            BoundVar k = new BoundVar(n.tok, CurrentIdGenerator.FreshId(n.Name + "$ih#"), n.Type, null, null);
             kvars.Add(k);
 
             IdentifierExpr ieK = new IdentifierExpr(k.tok, k.AssignUniqueName(currentDeclaration.IdGenerator));

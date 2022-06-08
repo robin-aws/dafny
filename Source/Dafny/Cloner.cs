@@ -204,7 +204,7 @@ namespace Microsoft.Dafny {
     }
 
     public virtual BoundVar CloneBoundVar(BoundVar bv) {
-      var bvNew = new BoundVar(Tok(bv.tok), bv.Name, CloneType(bv.SyntacticType));
+      var bvNew = new BoundVar(Tok(bv.tok), bv.Name, CloneType(bv.SyntacticType), CloneExpr(bv.Domain), CloneExpr(bv.Range));
       bvNew.IsGhost = bv.IsGhost;
       return bvNew;
     }
@@ -1397,7 +1397,7 @@ namespace Microsoft.Dafny {
 
     public override BoundVar CloneBoundVar(BoundVar bv) {
       // The difference here from the overridden method is that we do CloneType(bv.Type) instead of CloneType(bv.SyntacticType)
-      var bvNew = new BoundVar(Tok(bv.tok), bv.Name, CloneType(bv.Type));
+      var bvNew = new BoundVar(Tok(bv.tok), bv.Name, CloneType(bv.Type), CloneExpr(bv.Domain), CloneExpr(bv.Range));
       bvNew.IsGhost = bv.IsGhost;
       return bvNew;
     }

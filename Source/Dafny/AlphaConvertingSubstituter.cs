@@ -18,13 +18,21 @@ namespace Microsoft.Dafny {
       var newBoundVars = vars.Count == 0 ? vars : new List<BoundVar>();
       foreach (var bv in vars) {
         var tt = Resolver.SubstType(bv.Type, typeMap);
-        var newBv = new BoundVar(bv.tok, "_'" + bv.Name, tt);
-        newBoundVars.Add(newBv);
+        var newName = "_'" + bv.Name;
+        
+        var newDomain = bv.Domain == null ? null : Substitute(bv.Domain);
+
         // update substMap to reflect the new BoundVar substitutions
-        var ie = new IdentifierExpr(newBv.tok, newBv.Name);
+        var ie = new IdentifierExpr(bv.tok, newName);
+        substMap.Add(bv, ie);
+        
+        var newRange = bv.Range == null ? null : Substitute(bv.Range);
+        
+        var newBv = new BoundVar(bv.tok, newName, tt, newDomain, newRange);
+        newBoundVars.Add(newBv);
+        
         ie.Var = newBv;  // resolve here
         ie.Type = newBv.Type;  // resolve here
-        substMap.Add(bv, ie);
       }
       return newBoundVars;
     }

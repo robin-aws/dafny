@@ -1614,7 +1614,7 @@ BplBoundVar(varNameGen.FreshId(string.Format("#{0}#", bv.Name)), predef.BoxType,
         antitriggers = null;
         Boogie.Expr typeAntecedent = Boogie.Expr.True;
         foreach (BoundVar bv in boundVars) {
-          var newBoundVar = new BoundVar(bv.tok, bv.Name, bv.Type);
+          var newBoundVar = new BoundVar(bv.tok, bv.Name, bv.Type, bv.Domain, bv.Range);
           IdentifierExpr ie = new IdentifierExpr(newBoundVar.tok, newBoundVar.AssignUniqueName(translator.currentDeclaration.IdGenerator));
           ie.Var = newBoundVar; ie.Type = ie.Var.Type;  // resolve ie here
           substMap.Add(bv, ie);

@@ -219,7 +219,7 @@ bool IsIdentifier(int kind) {
   return kind == _ident || kind == _least || kind == _greatest || kind == _older;
 }
 
-bool IsQuantifierVariableDecl(QuantifiedVar previousVar) {
+bool IsQuantifierVariableDecl(BoundVar previousVar) {
   // Introducing per-quantified variable ranges creates some ambiguities in the grammar,
   // since before that the range would terminate the quantifed domain. For example, the following statement:
   //
@@ -1463,7 +1463,7 @@ NewtypeDecl<DeclModifierData dmod, ModuleDefinition module, out TopLevelDecl td>
       )
     ]
     [ TypeMembers<module, members> ]
-    (. td = new NewtypeDecl(id, id.val, module, new BoundVar(bvId, bvId.val, baseType), constraint, witnessKind, witness, members, attrs, isRefining: false);
+    (. td = new NewtypeDecl(id, id.val, module, new BoundVar(bvId, bvId.val, baseType, null, null), constraint, witnessKind, witness, members, attrs, isRefining: false);
     .)
   | Type<out baseType>
     [ TypeMembers<module, members> ]
@@ -1514,7 +1514,7 @@ SynonymTypeDecl<DeclModifierData dmod, ModuleDefinition module, out TopLevelDecl
           )
         )
       ]
-      (. td = new SubsetTypeDecl(id, id.val, characteristics, typeArgs, module, new BoundVar(bvId, bvId.val, ty), constraint, witnessKind, witness, attrs);
+      (. td = new SubsetTypeDecl(id, id.val, characteristics, typeArgs, module, new BoundVar(bvId, bvId.val, ty, null, null), constraint, witnessKind, witness, attrs);
          kind = "subset type";
       .)
     |
@@ -1600,7 +1600,7 @@ IdentTypeOptional<out BoundVar var>
   WildIdent<out id, true>
   [ ":" Type<out ty>             (. optType = ty; .)
   ]
-  (. var = new BoundVar(id, id.val, optType == null ? new InferredTypeProxy() : optType); .)
+  (. var = new BoundVar(id, id.val, optType == null ? new InferredTypeProxy() : optType, null, null); .)
   .
 
 TypeIdentOptional<out IToken/*!*/ id, out string/*!*/ identName, out Type/*!*/ ty, out bool isGhost, out Expression defaultValue, out bool isNameOnly>
@@ -4090,7 +4090,7 @@ LambdaExpression<out Expression e, bool allowLemma, bool allowBitwiseOps>
      Expression req = null;
      Expression body = null;
   .)
-  ( WildIdent<out id, true>                  (. x = t; bvs.Add(new BoundVar(id, id.val, new InferredTypeProxy())); .)
+  ( WildIdent<out id, true>                  (. x = t; bvs.Add(new BoundVar(id, id.val, new InferredTypeProxy(), null, null)); .)
   | "("                                      (. x = t; .)
       [
         IdentTypeOptional<out bv>            (. bvs.Add(bv); .)
@@ -4750,8 +4750,8 @@ QuantifierExpression<out Expression q, bool allowLemma, bool allowLambda>
 /*------------------------------------------------------------------------*/
 QuantifierDomain<.out List<BoundVar> bvars, out Attributes attrs, out Expression range, bool allowLemma, bool allowLambda, bool allowBitwiseOps.>
 = (.
-     List<QuantifiedVar> qvars = new List<QuantifiedVar>();
-     QuantifiedVar/*!*/ qv;
+     List<BoundVar> qvars = new List<BoundVar>();
+     BoundVar/*!*/ qv;
      attrs = null;
      range = null;
   .)
@@ -4760,11 +4760,11 @@ QuantifierDomain<.out List<BoundVar> bvars, out Attributes attrs, out Expression
     ","
     QuantifierVariableDecl<out qv, ref attrs, allowLemma, allowLambda, allowBitwiseOps>       (. qvars.Add(qv); .)
   }
-  (. QuantifiedVar.ExtractSingleRange(qvars, out bvars, out range); .)
+  (. BoundVar.ExtractSingleRange(qvars, out bvars, out range); .)
   .
   
 /*------------------------------------------------------------------------*/
-QuantifierVariableDecl<.out QuantifiedVar qvar, ref Attributes attrs, bool allowLemma, bool allowLambda, bool allowBitwiseOps.>
+QuantifierVariableDecl<.out BoundVar qvar, ref Attributes attrs, bool allowLemma, bool allowLambda, bool allowBitwiseOps.>
 = (.
      BoundVar bv;
      Expression domain = null;
@@ -4787,7 +4787,7 @@ QuantifierVariableDecl<.out QuantifiedVar qvar, ref Attributes attrs, bool allow
     "|"
     Expression<out range, allowLemma, allowLambda, allowBitwiseOps>
   ]
-  (. qvar = new QuantifiedVar(bv.tok, bv.Name, bv.SyntacticType, domain, range); .)
+  (. qvar = new BoundVar(bv.tok, bv.Name, bv.SyntacticType, domain, range); .)
   .
 
 /*------------------------------------------------------------------------*/

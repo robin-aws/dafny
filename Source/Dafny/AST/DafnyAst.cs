@@ -136,7 +136,7 @@ namespace Microsoft.Dafny {
         new List<TypeParameter>(), SystemModule, new SeqType(new CharType()), null);
       SystemModule.TopLevelDecls.Add(str);
       // create subset type 'nat'
-      var bvNat = new BoundVar(Token.NoToken, "x", Type.Int);
+      var bvNat = new BoundVar(Token.NoToken, "x", Type.Int, null, null);
       var natConstraint = Expression.CreateAtMost(Expression.CreateIntLiteral(Token.NoToken, 0), Expression.CreateIdentExpr(bvNat));
       var ax = AxiomAttribute();
       NatDecl = new SubsetTypeDecl(Token.NoToken, "nat",
@@ -246,7 +246,7 @@ namespace Microsoft.Dafny {
           new TypeParameter(tok, "T" + x, TypeParameter.TPVarianceSyntax.Contravariance) :
           new TypeParameter(tok, "R", TypeParameter.TPVarianceSyntax.Covariant_Strict));
         tys = tps.ConvertAll(tp => (Type)(new UserDefinedType(tp)));
-        var id = new BoundVar(tok, "f", new ArrowType(tok, arrowDecl, tys));
+        var id = new BoundVar(tok, "f", new ArrowType(tok, arrowDecl, tys), null, null);
         var partialArrow = new SubsetTypeDecl(tok, ArrowType.PartialArrowTypeName(arity),
           new TypeParameter.TypeParameterCharacteristics(false), tps, SystemModule,
           id, ArrowSubtypeConstraint(tok, tok, id, reads, tps, false), SubsetTypeDecl.WKind.Special, null, DontCompile());
@@ -259,7 +259,7 @@ namespace Microsoft.Dafny {
           new TypeParameter(tok, "T" + x, TypeParameter.TPVarianceSyntax.Contravariance) :
           new TypeParameter(tok, "R", TypeParameter.TPVarianceSyntax.Covariant_Strict));
         tys = tps.ConvertAll(tp => (Type)(new UserDefinedType(tp)));
-        id = new BoundVar(tok, "f", new UserDefinedType(tok, partialArrow.Name, partialArrow, tys));
+        id = new BoundVar(tok, "f", new UserDefinedType(tok, partialArrow.Name, partialArrow, tys), null, null);
         var totalArrow = new SubsetTypeDecl(tok, ArrowType.TotalArrowTypeName(arity),
           new TypeParameter.TypeParameterCharacteristics(false), tps, SystemModule,
           id, ArrowSubtypeConstraint(tok, tok, id, req, tps, true), SubsetTypeDecl.WKind.Special, null, DontCompile());
@@ -288,7 +288,7 @@ namespace Microsoft.Dafny {
       var args = new List<Expression>();
       var bounds = new List<ComprehensionExpr.BoundedPool>();
       for (int i = 0; i < tps.Count - 1; i++) {
-        var bv = new BoundVar(tok, "x" + i, new UserDefinedType(tps[i]));
+        var bv = new BoundVar(tok, "x" + i, new UserDefinedType(tps[i]), null, null);
         bvs.Add(bv);
         args.Add(new IdentifierExpr(tok, bv));
         bounds.Add(new ComprehensionExpr.SpecialAllocIndependenceAllocatedBoundedPool());
@@ -5781,7 +5781,7 @@ namespace Microsoft.Dafny {
 
     private NonNullTypeDecl(ClassDecl cl, List<TypeParameter> tps)
       : this(cl, tps,
-      new BoundVar(cl.tok, "c", new UserDefinedType(cl.tok, cl.Name + "?", tps.Count == 0 ? null : tps.ConvertAll(tp => (Type)new UserDefinedType(tp))))) {
+      new BoundVar(cl.tok, "c", new UserDefinedType(cl.tok, cl.Name + "?", tps.Count == 0 ? null : tps.ConvertAll(tp => (Type)new UserDefinedType(tp))), null, null)) {
       Contract.Requires(cl != null);
       Contract.Requires(tps != null);
     }
@@ -6114,33 +6114,17 @@ namespace Microsoft.Dafny {
 
   [DebuggerDisplay("Bound<{name}>")]
   public class BoundVar : NonglobalVariable {
+    public readonly Expression Domain;
+    public readonly Expression Range;
+
     public override bool IsMutable {
       get {
         return false;
       }
     }
 
-    public BoundVar(IToken tok, string name, Type type)
+    public BoundVar(IToken tok, string name, Type type, Expression domain, Expression range)
       : base(tok, name, type, false) {
-      Contract.Requires(tok != null);
-      Contract.Requires(name != null);
-      Contract.Requires(type != null);
-    }
-  }
-
-  /// <summary>
-  /// A QuantifiedVar is a bound variable used in a quantifier such as "forall x :: ...",
-  /// a comprehension such as "set x | 0 <= x < 10", etc.
-  /// In addition to its type, which may be inferred, it can have an optional domain collection expression
-  /// (x <- C) and an optional range boolean expressions (x | E).
-  /// </summary>
-  [DebuggerDisplay("Quantified<{name}>")]
-  public class QuantifiedVar : BoundVar {
-    public readonly Expression Domain;
-    public readonly Expression Range;
-
-    public QuantifiedVar(IToken tok, string name, Type type, Expression domain, Expression range)
-      : base(tok, name, type) {
       Contract.Requires(tok != null);
       Contract.Requires(name != null);
       Contract.Requires(type != null);
@@ -6161,25 +6145,30 @@ namespace Microsoft.Dafny {
     /// Note the result will be null rather than "true" if there are no such domains or ranges.
     /// Some quantification contexts (such as comprehensions) will replace this with "true".
     /// </summary>
-    public static void ExtractSingleRange(List<QuantifiedVar> qvars, out List<BoundVar> bvars, out Expression range) {
+    public static void ExtractSingleRange(List<BoundVar> qvars, out List<BoundVar> bvars, out Expression range) {
       bvars = new List<BoundVar>();
       range = null;
 
-      foreach (var qvar in qvars) {
-        BoundVar bvar = new BoundVar(qvar.tok, qvar.Name, qvar.SyntacticType);
+      foreach(var qvar in qvars) {
+        BoundVar bvar = new BoundVar(qvar.tok, qvar.Name, qvar.SyntacticType, null, null);
         bvars.Add(bvar);
 
         if (qvar.Domain != null) {
           // Attach a token wrapper so we can produce a better error message if the domain is not a collection
           var domainWithToken = QuantifiedVariableDomainCloner.Instance.CloneExpr(qvar.Domain);
-          var inDomainExpr = new BinaryExpr(domainWithToken.tok, BinaryExpr.Opcode.In, new IdentifierExpr(bvar.tok, bvar), domainWithToken);
-          range = range == null ? inDomainExpr : new BinaryExpr(domainWithToken.tok, BinaryExpr.Opcode.And, range, inDomainExpr);
+          var inDomainExpr = new BinaryExpr(domainWithToken.tok, BinaryExpr.Opcode.In,
+            new IdentifierExpr(bvar.tok, bvar), domainWithToken);
+          range = range == null
+            ? inDomainExpr
+            : new BinaryExpr(domainWithToken.tok, BinaryExpr.Opcode.And, range, inDomainExpr);
         }
 
         if (qvar.Range != null) {
           // Attach a token wrapper so we can produce a better error message if the range is not a boolean expression
           var rangeWithToken = QuantifiedVariableRangeCloner.Instance.CloneExpr(qvar.Range);
-          range = range == null ? qvar.Range : new BinaryExpr(rangeWithToken.tok, BinaryExpr.Opcode.And, range, rangeWithToken);
+          range = range == null
+            ? qvar.Range
+            : new BinaryExpr(rangeWithToken.tok, BinaryExpr.Opcode.And, range, rangeWithToken);
         }
       }
     }

@@ -5031,7 +5031,7 @@ namespace Microsoft.Dafny.Compilers {
           Var = fv, // resolved here!
           Type = fv.Type
         });
-        var bv = new BoundVar(fv.Tok, fv.Name, fv.Type);
+        var bv = new BoundVar(fv.Tok, fv.Name, fv.Type, null, null);
         bvars.Add(bv);
         sm[fv] = new IdentifierExpr(bv.Tok, bv.Name) {
           Var = bv, // resolved here!

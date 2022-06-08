@@ -860,12 +860,12 @@ namespace Microsoft.Dafny {
         var bvars = new List<BoundVar>();
         var bexprs = new List<Expression>();
         foreach (var t in arrTy.Args) {
-          var bv = new BoundVar(e.tok, idGen.FreshId("_x"), t);
+          var bv = new BoundVar(e.tok, idGen.FreshId("_x"), t, null, null);
           bvars.Add(bv);
           bexprs.Add(new IdentifierExpr(e.tok, bv.Name) { Type = bv.Type, Var = bv });
         }
 
-        var oVar = new BoundVar(e.tok, idGen.FreshId("_o"), builtIns.ObjectQ());
+        var oVar = new BoundVar(e.tok, idGen.FreshId("_o"), builtIns.ObjectQ(), null, null);
         var obj = new IdentifierExpr(e.tok, oVar.Name) { Type = oVar.Type, Var = oVar };
         bvars.Add(oVar);
 
@@ -913,7 +913,7 @@ namespace Microsoft.Dafny {
           } else if (eType is SeqType || eType is MultiSetType) {
             // e represents a sequence or multiset
             // Add:  set x :: x in e
-            var bv = new BoundVar(e.tok, idGen.FreshId("_s2s_"), ((CollectionType)eType).Arg);
+            var bv = new BoundVar(e.tok, idGen.FreshId("_s2s_"), ((CollectionType)eType).Arg, null, null);
             var bvIE = new IdentifierExpr(e.tok, bv.Name);
             bvIE.Var = bv; // resolve here
             bvIE.Type = bv.Type; // resolve here
@@ -3022,7 +3022,7 @@ namespace Microsoft.Dafny {
               //     }
               Contract.Assume(builtIns.ORDINAL_Offset != null);  // should have been filled in earlier
               var kId = new IdentifierExpr(com.tok, k);
-              var kprimeVar = new BoundVar(com.tok, "_k'", Type.BigOrdinal);
+              var kprimeVar = new BoundVar(com.tok, "_k'", Type.BigOrdinal, null, null);
               var kprime = new IdentifierExpr(com.tok, kprimeVar);
               var smaller = Expression.CreateLess(kprime, kId);
 
@@ -3033,7 +3033,7 @@ namespace Microsoft.Dafny {
                   bvs.Add(kprimeVar);
                   substMap.Add(k, kprime);
                 } else {
-                  var bv = new BoundVar(inFormal.tok, inFormal.Name, inFormal.Type);
+                  var bv = new BoundVar(inFormal.tok, inFormal.Name, inFormal.Type, null, null);
                   bvs.Add(bv);
                   substMap.Add(inFormal, new IdentifierExpr(com.tok, bv));
                 }
@@ -12064,7 +12064,7 @@ namespace Microsoft.Dafny {
         var cLet = new VarDeclPattern(cLVar.Tok, cLVar.Tok, cPat, expr, false);
         branchStmt.Body.Insert(0, cLet);
       } else if (branch is RBranchExpr branchExpr) {
-        var cBVar = new BoundVar(var.Tok, name, type);
+        var cBVar = new BoundVar(var.Tok, name, type, null, null);
         cBVar.IsGhost = isGhost;
         var cPat = new CasePattern<BoundVar>(cBVar.Tok, cBVar);
         var cPats = new List<CasePattern<BoundVar>>();
@@ -12157,7 +12157,7 @@ namespace Microsoft.Dafny {
 
     private BoundVar CreatePatBV(IToken tok, Type type, ICodeContext codeContext) {
       var name = FreshTempVarName("_mcc#", codeContext);
-      return new BoundVar(tok, name, type);
+      return new BoundVar(tok, name, type, null, null);
     }
 
     private IdPattern CreateFreshId(IToken tok, Type type, ICodeContext codeContext, bool isGhost = false) {
@@ -12617,7 +12617,7 @@ namespace Microsoft.Dafny {
         NameSegment e = new NameSegment(pat.Tok, pat.Id, null);
         ResolveNameSegment(e, true, null, opts, false, false);
         if (e.ResolvedExpression == null) {
-          ScopePushAndReport(scope, new BoundVar(pat.Tok, pat.Id, type), "parameter");
+          ScopePushAndReport(scope, new BoundVar(pat.Tok, pat.Id, type, null, null), "parameter");
         } else {
           // finds in full scope, not just current scope
           if (e.Resolved is MemberSelectExpr mse) {
@@ -12634,14 +12634,14 @@ namespace Microsoft.Dafny {
                 }
               } else {
                 reporter.Error(MessageSource.Resolver, pat.Tok, "{0} is not initialized as a constant literal", pat.Id);
-                ScopePushAndReport(scope, new BoundVar(pat.Tok, pat.Id, type), "parameter");
+                ScopePushAndReport(scope, new BoundVar(pat.Tok, pat.Id, type, null, null), "parameter");
               }
             } else {
               // Not a static const, so just a variable
-              ScopePushAndReport(scope, new BoundVar(pat.Tok, pat.Id, type), "parameter");
+              ScopePushAndReport(scope, new BoundVar(pat.Tok, pat.Id, type, null, null), "parameter");
             }
           } else {
-            ScopePushAndReport(scope, new BoundVar(pat.Tok, pat.Id, type), "parameter");
+            ScopePushAndReport(scope, new BoundVar(pat.Tok, pat.Id, type, null, null), "parameter");
           }
         }
       }
@@ -15402,7 +15402,7 @@ namespace Microsoft.Dafny {
     }
 
     private LetExpr LetVarIn(IToken tok, string name, Type tp, Expression rhs, Expression body) {
-      var lhs = new CasePattern<BoundVar>(tok, new BoundVar(tok, name, tp));
+      var lhs = new CasePattern<BoundVar>(tok, new BoundVar(tok, name, tp, null, null));
       return LetPatIn(tok, lhs, rhs, body);
     }
 
@@ -15595,7 +15595,7 @@ namespace Microsoft.Dafny {
                 rhsBindings.Add(destructor_str, new Tuple<BoundVar, IdentifierExpr, Expression>(null, null, entry.Item3));
               } else {
                 var xName = FreshTempVarName(string.Format("dt_update#{0}#", destructor_str), opts.codeContext);
-                var xVar = new BoundVar(new AutoGeneratedToken(tok), xName, SubstType(destructor.Type, subst));
+                var xVar = new BoundVar(new AutoGeneratedToken(tok), xName, SubstType(destructor.Type, subst), null, null);
                 var x = new IdentifierExpr(new AutoGeneratedToken(tok), xVar);
                 rhsBindings.Add(destructor_str, new Tuple<BoundVar, IdentifierExpr, Expression>(xVar, x, entry.Item3));
               }
@@ -15641,7 +15641,7 @@ namespace Microsoft.Dafny {
       Expression rewrite = null;
       // Create a unique name for d', the variable we introduce in the let expression
       var dName = FreshTempVarName("dt_update_tmp#", opts.codeContext);
-      var dVar = new BoundVar(new AutoGeneratedToken(tok), dName, root.Type);
+      var dVar = new BoundVar(new AutoGeneratedToken(tok), dName, root.Type, null, null);
       var d = new IdentifierExpr(new AutoGeneratedToken(tok), dVar);
       Expression body = null;
       candidateResultCtors.Reverse();

@@ -579,7 +579,7 @@ namespace Microsoft.Dafny {
               Contract.Assert(!m.IsStatic);  // if "m" is static, "this" should never have gone into the _induction attribute
               Contract.Assert(receiverSubst == null);  // we expect at most one
               var receiverType = Resolver.GetThisType(m.tok, (TopLevelDeclWithMembers)m.EnclosingClass);
-              bv = new BoundVar(m.tok, CurrentIdGenerator.FreshId("$ih#this"), receiverType); // use this temporary variable counter, but for a Dafny name (the idea being that the number and the initial "_" in the name might avoid name conflicts)
+              bv = new BoundVar(m.tok, CurrentIdGenerator.FreshId("$ih#this"), receiverType, null, null); // use this temporary variable counter, but for a Dafny name (the idea being that the number and the initial "_" in the name might avoid name conflicts)
               var ie = new IdentifierExpr(m.tok, bv.Name);
               ie.Var = bv;  // resolve here
               ie.Type = bv.Type;  // resolve here

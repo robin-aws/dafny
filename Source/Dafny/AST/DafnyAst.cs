@@ -136,7 +136,7 @@ namespace Microsoft.Dafny {
         new List<TypeParameter>(), SystemModule, new SeqType(new CharType()), null);
       SystemModule.TopLevelDecls.Add(str);
       // create subset type 'nat'
-      var bvNat = new BoundVar(Token.NoToken, "x", Type.Int);
+      var bvNat = new BoundVar(Token.NoToken, "x", Type.Int, null, null);
       var natConstraint = Expression.CreateAtMost(Expression.CreateIntLiteral(Token.NoToken, 0), Expression.CreateIdentExpr(bvNat));
       var ax = AxiomAttribute();
       NatDecl = new SubsetTypeDecl(Token.NoToken, "nat",
@@ -246,7 +246,7 @@ namespace Microsoft.Dafny {
           new TypeParameter(tok, "T" + x, TypeParameter.TPVarianceSyntax.Contravariance) :
           new TypeParameter(tok, "R", TypeParameter.TPVarianceSyntax.Covariant_Strict));
         tys = tps.ConvertAll(tp => (Type)(new UserDefinedType(tp)));
-        var id = new BoundVar(tok, "f", new ArrowType(tok, arrowDecl, tys));
+        var id = new BoundVar(tok, "f", new ArrowType(tok, arrowDecl, tys), null, null);
         var partialArrow = new SubsetTypeDecl(tok, ArrowType.PartialArrowTypeName(arity),
           new TypeParameter.TypeParameterCharacteristics(false), tps, SystemModule,
           id, ArrowSubtypeConstraint(tok, tok, id, reads, tps, false), SubsetTypeDecl.WKind.Special, null, DontCompile());
@@ -259,7 +259,7 @@ namespace Microsoft.Dafny {
           new TypeParameter(tok, "T" + x, TypeParameter.TPVarianceSyntax.Contravariance) :
           new TypeParameter(tok, "R", TypeParameter.TPVarianceSyntax.Covariant_Strict));
         tys = tps.ConvertAll(tp => (Type)(new UserDefinedType(tp)));
-        id = new BoundVar(tok, "f", new UserDefinedType(tok, partialArrow.Name, partialArrow, tys));
+        id = new BoundVar(tok, "f", new UserDefinedType(tok, partialArrow.Name, partialArrow, tys), null, null);
         var totalArrow = new SubsetTypeDecl(tok, ArrowType.TotalArrowTypeName(arity),
           new TypeParameter.TypeParameterCharacteristics(false), tps, SystemModule,
           id, ArrowSubtypeConstraint(tok, tok, id, req, tps, true), SubsetTypeDecl.WKind.Special, null, DontCompile());
@@ -288,7 +288,7 @@ namespace Microsoft.Dafny {
       var args = new List<Expression>();
       var bounds = new List<ComprehensionExpr.BoundedPool>();
       for (int i = 0; i < tps.Count - 1; i++) {
-        var bv = new BoundVar(tok, "x" + i, new UserDefinedType(tps[i]));
+        var bv = new BoundVar(tok, "x" + i, new UserDefinedType(tps[i]), null, null);
         bvs.Add(bv);
         args.Add(new IdentifierExpr(tok, bv));
         bounds.Add(new ComprehensionExpr.SpecialAllocIndependenceAllocatedBoundedPool());
@@ -5781,7 +5781,7 @@ namespace Microsoft.Dafny {
 
     private NonNullTypeDecl(ClassDecl cl, List<TypeParameter> tps)
       : this(cl, tps,
-      new BoundVar(cl.tok, "c", new UserDefinedType(cl.tok, cl.Name + "?", tps.Count == 0 ? null : tps.ConvertAll(tp => (Type)new UserDefinedType(tp))))) {
+      new BoundVar(cl.tok, "c", new UserDefinedType(cl.tok, cl.Name + "?", tps.Count == 0 ? null : tps.ConvertAll(tp => (Type)new UserDefinedType(tp))), null, null)) {
       Contract.Requires(cl != null);
       Contract.Requires(tps != null);
     }
@@ -6114,17 +6114,63 @@ namespace Microsoft.Dafny {
 
   [DebuggerDisplay("Bound<{name}>")]
   public class BoundVar : NonglobalVariable {
+    public readonly Expression Domain;
+    public readonly Expression Range;
+
     public override bool IsMutable {
       get {
         return false;
       }
     }
 
-    public BoundVar(IToken tok, string name, Type type)
+    public BoundVar(IToken tok, string name, Type type, Expression domain, Expression range)
       : base(tok, name, type, false) {
       Contract.Requires(tok != null);
       Contract.Requires(name != null);
       Contract.Requires(type != null);
+      Domain = domain;
+      Range = range;
+    }
+
+    /// <summary>
+    /// Map a list of quantified variables to an eqivalent list of bound variables plus a single range expression.
+    /// The transformation looks like this in general:
+    ///
+    /// x1 <- C1 | E1, ..., xN <- CN | EN
+    ///
+    /// becomes:
+    ///
+    /// x1, ... xN | x1 in C1 && E1 && ... && xN in CN && EN
+    ///
+    /// Note the result will be null rather than "true" if there are no such domains or ranges.
+    /// Some quantification contexts (such as comprehensions) will replace this with "true".
+    /// </summary>
+    public static void ExtractSingleRange(List<BoundVar> qvars, out List<BoundVar> bvars, out Expression range) {
+      bvars = new List<BoundVar>();
+      range = null;
+
+      foreach(var qvar in qvars) {
+        BoundVar bvar = new BoundVar(qvar.tok, qvar.Name, qvar.SyntacticType, null, null);
+        bvars.Add(bvar);
+
+        if (qvar.Domain != null) {
+          // Attach a token wrapper so we can produce a better error message if the domain is not a collection
+          var domainWithToken = QuantifiedVariableDomainCloner.Instance.CloneExpr(qvar.Domain);
+          var inDomainExpr = new BinaryExpr(domainWithToken.tok, BinaryExpr.Opcode.In,
+            new IdentifierExpr(bvar.tok, bvar), domainWithToken);
+          range = range == null
+            ? inDomainExpr
+            : new BinaryExpr(domainWithToken.tok, BinaryExpr.Opcode.And, range, inDomainExpr);
+        }
+
+        if (qvar.Range != null) {
+          // Attach a token wrapper so we can produce a better error message if the range is not a boolean expression
+          var rangeWithToken = QuantifiedVariableRangeCloner.Instance.CloneExpr(qvar.Range);
+          range = range == null
+            ? qvar.Range
+            : new BinaryExpr(rangeWithToken.tok, BinaryExpr.Opcode.And, range, rangeWithToken);
+        }
+      }
     }
   }
 
@@ -9046,6 +9092,54 @@ namespace Microsoft.Dafny {
     }
   }
 
+  /// <summary>
+  /// A token wrapper used to produce better type checking errors
+  /// for quantified variables. See QuantifierVar.ExtractSingleRange()
+  /// </summary>
+  public class QuantifiedVariableDomainToken : TokenWrapper {
+    public QuantifiedVariableDomainToken(IToken wrappedToken)
+      : base(wrappedToken) {
+      Contract.Requires(wrappedToken != null);
+    }
+
+    public override string val {
+      get { return WrappedToken.val; }
+      set { WrappedToken.val = value; }
+    }
+  }
+
+  /// <summary>
+  /// A token wrapper used to produce better type checking errors
+  /// for quantified variables. See QuantifierVar.ExtractSingleRange()
+  /// </summary>
+  public class QuantifiedVariableRangeToken : TokenWrapper {
+    public QuantifiedVariableRangeToken(IToken wrappedToken)
+      : base(wrappedToken) {
+      Contract.Requires(wrappedToken != null);
+    }
+
+    public override string val {
+      get { return WrappedToken.val; }
+      set { WrappedToken.val = value; }
+    }
+  }
+
+  class QuantifiedVariableDomainCloner : Cloner {
+    public static readonly QuantifiedVariableDomainCloner Instance = new QuantifiedVariableDomainCloner();
+    private QuantifiedVariableDomainCloner() { }
+    public override IToken Tok(IToken tok) {
+      return new QuantifiedVariableDomainToken(tok);
+    }
+  }
+
+  class QuantifiedVariableRangeCloner : Cloner {
+    public static readonly QuantifiedVariableRangeCloner Instance = new QuantifiedVariableRangeCloner();
+    private QuantifiedVariableRangeCloner() { }
+    public override IToken Tok(IToken tok) {
+      return new QuantifiedVariableRangeToken(tok);
+    }
+  }
+
   // ------------------------------------------------------------------------------------------------------
   [DebuggerDisplay("{Printer.ExprToString(this)}")]
   public abstract class Expression {
@@ -11452,11 +11546,19 @@ namespace Microsoft.Dafny {
 
   /// <summary>
   /// A ComprehensionExpr has the form:
-  ///   BINDER x Attributes | Range(x) :: Term(x)
-  /// When BINDER is "forall" or "exists", the range may be "null" (which stands for the logical value "true").
-  /// For other BINDERs (currently, "set"), the range is non-null.
-  /// where "Attributes" is optional, and "| Range(x)" is optional and defaults to "true".
-  /// Currently, BINDER is one of the logical quantifiers "exists" or "forall".
+  ///   BINDER { x [: Type] [<- Domain] [Attributes] [| Range] } [:: Term(x)]
+  /// Where BINDER is currently "forall", "exists", "iset"/"set", or "imap"/"map".
+  ///
+  /// Quantifications used to only support a single range, but now each
+  /// quantified variable can have a range attached.
+  /// The overall Range is now filled in by the parser by extracting any implicit
+  /// "x in Domain" constraints and per-variable Range constraints into a single conjunct.
+  ///
+  /// The Term is optional if the expression only has one quantified variable,
+  /// but required otherwise.
+  /// 
+  /// LambdaExpr also inherits from this base class but isn't really a comprehension,
+  /// and should be considered implementation inheritance.
   /// </summary>
   public abstract class ComprehensionExpr : Expression, IAttributeBearingDeclaration, IBoundVarsBearingExpression {
     public virtual string WhatKind => "comprehension";
@@ -11936,10 +12038,8 @@ namespace Microsoft.Dafny {
     }
   }
 
-  public class SetComprehension : ComprehensionExpr {
-    public override string WhatKind => "set comprehension";
-
-    public readonly bool Finite;
+  public class CollectionComprehension : ComprehensionExpr {
+    public virtual bool Finite => true;
     public readonly bool TermIsImplicit;  // records the given syntactic form
     public bool TermIsSimple {
       get {
@@ -11951,7 +12051,7 @@ namespace Microsoft.Dafny {
       }
     }
 
-    public SetComprehension(IToken tok, IToken endTok, bool finite, List<BoundVar> bvars, Expression range, Expression/*?*/ term, Attributes attrs)
+    public CollectionComprehension(IToken tok, IToken endTok, List<BoundVar> bvars, Expression range, Expression/*?*/ term, Attributes attrs)
       : base(tok, endTok, bvars, range, term ?? new IdentifierExpr(tok, bvars[0].Name), attrs) {
       Contract.Requires(tok != null);
       Contract.Requires(cce.NonNullElements(bvars));
@@ -11960,9 +12060,31 @@ namespace Microsoft.Dafny {
       Contract.Requires(term != null || bvars.Count == 1);
 
       TermIsImplicit = term == null;
-      Finite = finite;
     }
   }
+
+  public class SetComprehension : CollectionComprehension {
+    public override string WhatKind => "set comprehension";
+
+    public override bool Finite => finite;
+    private readonly bool finite;
+
+    public SetComprehension(IToken tok, IToken endTok, bool finite, List<BoundVar> bvars, Expression range, Expression /*?*/ term, Attributes attrs) 
+      : base(tok, endTok, bvars, range, term, attrs) {
+      this.finite = finite;
+    }
+  }
+
+  public class SeqComprehension : CollectionComprehension {
+    public override string WhatKind => "seq comprehension";
+    
+    public override bool Finite => true;
+    
+    public SeqComprehension(IToken tok, IToken endTok, List<BoundVar> bvars, Expression range, Expression/*?*/ term, Attributes attrs)
+      : base(tok, endTok, bvars, range, term, attrs) {
+    }
+  }
+  
   public class MapComprehension : ComprehensionExpr {
     public override string WhatKind => "map comprehension";
 

@@ -149,7 +149,7 @@ namespace Microsoft.Dafny.Triggers {
             if (triggersCollector.IsTriggerKiller(sub) && (!TriggersCollector.IsPotentialTriggerCandidate(sub))) {
               var entry = substMap.Find(x => ExprExtensions.ExpressionEq(sub, x.Item1));
               if (entry == null) {
-                var newBv = new BoundVar(sub.tok, "_t#" + substMap.Count, sub.Type);
+                var newBv = new BoundVar(sub.tok, "_t#" + substMap.Count, sub.Type, null, null);
                 var ie = new IdentifierExpr(sub.tok, newBv.Name);
                 ie.Var = newBv;
                 ie.Type = newBv.Type;

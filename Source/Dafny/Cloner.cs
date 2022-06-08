@@ -204,7 +204,7 @@ namespace Microsoft.Dafny {
     }
 
     public virtual BoundVar CloneBoundVar(BoundVar bv) {
-      var bvNew = new BoundVar(Tok(bv.tok), bv.Name, CloneType(bv.SyntacticType));
+      var bvNew = new BoundVar(Tok(bv.tok), bv.Name, CloneType(bv.SyntacticType), CloneExpr(bv.Domain), CloneExpr(bv.Range));
       bvNew.IsGhost = bv.IsGhost;
       return bvNew;
     }
@@ -433,6 +433,8 @@ namespace Microsoft.Dafny {
           return new MapComprehension(tk, tkEnd, mc.Finite, bvs, range, mc.TermLeft == null ? null : CloneExpr(mc.TermLeft), term, CloneAttributes(e.Attributes));
         } else if (e is LambdaExpr l) {
           return new LambdaExpr(tk, tkEnd, bvs, range, l.Reads.ConvertAll(CloneFrameExpr), term);
+        } else if (e is SeqComprehension sc) {
+          return new SeqComprehension(tk, tkEnd, bvs, range, sc.TermIsImplicit ? null : term, CloneAttributes(e.Attributes));
         } else {
           Contract.Assert(e is SetComprehension);
           var tt = (SetComprehension)e;
@@ -1395,7 +1397,7 @@ namespace Microsoft.Dafny {
 
     public override BoundVar CloneBoundVar(BoundVar bv) {
       // The difference here from the overridden method is that we do CloneType(bv.Type) instead of CloneType(bv.SyntacticType)
-      var bvNew = new BoundVar(Tok(bv.tok), bv.Name, CloneType(bv.Type));
+      var bvNew = new BoundVar(Tok(bv.tok), bv.Name, CloneType(bv.Type), CloneExpr(bv.Domain), CloneExpr(bv.Range));
       bvNew.IsGhost = bv.IsGhost;
       return bvNew;
     }

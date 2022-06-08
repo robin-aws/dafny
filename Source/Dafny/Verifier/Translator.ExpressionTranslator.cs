@@ -405,6 +405,10 @@ namespace Microsoft.Dafny {
           }
           return s;
 
+        } else if (expr is SeqComprehension) {
+          // TODO
+          return translator.FunctionCall(expr.tok, BuiltinFunction.SeqEmpty, predef.BoxType);
+
         } else if (expr is MapDisplayExpr) {
           MapDisplayExpr e = (MapDisplayExpr)expr;
           Boogie.Type maptype = predef.MapType(GetToken(expr), e.Finite, predef.BoxType, predef.BoxType);
@@ -1610,7 +1614,7 @@ BplBoundVar(varNameGen.FreshId(string.Format("#{0}#", bv.Name)), predef.BoxType,
         antitriggers = null;
         Boogie.Expr typeAntecedent = Boogie.Expr.True;
         foreach (BoundVar bv in boundVars) {
-          var newBoundVar = new BoundVar(bv.tok, bv.Name, bv.Type);
+          var newBoundVar = new BoundVar(bv.tok, bv.Name, bv.Type, bv.Domain, bv.Range);
           IdentifierExpr ie = new IdentifierExpr(newBoundVar.tok, newBoundVar.AssignUniqueName(translator.currentDeclaration.IdGenerator));
           ie.Var = newBoundVar; ie.Type = ie.Var.Type;  // resolve ie here
           substMap.Add(bv, ie);

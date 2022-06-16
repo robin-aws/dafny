@@ -1,8 +1,8 @@
 
-// RUN: %dafny /compile:0 /spillTargetCode:3 /out:%S/../Library %S/../Library/Halver.dfy
+// RUN: %dafny /compile:0 /useRuntimeLib /spillTargetCode:3 /out:%S/../Library %S/../Library/Halver.dfy
 // RUN: dotnet build %S/../Library
 
-// RUN: %dafny /compile:0 /spillTargetCode:3 %s
+// RUN: %dafny /compile:0 /useRuntimeLib /spillTargetCode:3 %s
 // RUN: dotnet run %S > "%t"
 // RUN: %diff "%s.expect" "%t"
 

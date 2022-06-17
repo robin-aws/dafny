@@ -202,7 +202,8 @@ namespace Microsoft.Dafny {
           try { file = new DafnyFile(include.includedFilename); } catch (IllegalDafnyFile) {
             return (String.Format("Include of file \"{0}\" failed.", include.includedFilename));
           }
-          string ret = ParseFile(file, include, module, builtIns, errs, false);
+          // TODO-HACK: Not compiling feels like the right and expected thing to do, but is a breaking change...
+          string ret = ParseFile(file, include, module, builtIns, errs, false, compileThisFile:false);
           if (ret != null) {
             return ret;
           }

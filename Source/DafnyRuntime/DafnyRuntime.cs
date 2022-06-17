@@ -1733,6 +1733,78 @@ namespace Dafny {
 }
 
 namespace @_System {
+  public interface _ITuple0 {
+  }
+
+  public class Tuple0 : _ITuple0 {
+    public Tuple0() {
+    }
+    public override bool Equals(object other) {
+      var oth = other as _System.Tuple0;
+      return oth != null;
+    }
+    public override int GetHashCode() {
+      ulong hash = 5381;
+      hash = ((hash << 5) + hash) + 0;
+      return (int)hash;
+    }
+    public override string ToString() {
+      return "()";
+    }
+    public static _ITuple0 Default() {
+      return create();
+    }
+    public static Dafny.TypeDescriptor<_System._ITuple0> _TypeDescriptor() {
+      return new Dafny.TypeDescriptor<_System._ITuple0>(_System.Tuple0.Default());
+    }
+    public static _ITuple0 create() {
+      return new Tuple0();
+    }
+  }
+  
+  // TODO-HACK: This feels impossible but the Builtins code doesn't seem to avoid it...
+  public interface _ITuple1<out T0> {
+    T0 dtor__0 { get; }
+  }
+
+  public class Tuple1<T0> : _ITuple1<T0> {
+    public readonly T0 _0;
+    public Tuple1(T0 _0) {
+      this._0 = _0;
+    }
+    public override bool Equals(object other) {
+      var oth = other as _System.Tuple1<T0>;
+      return oth != null && object.Equals(this._0, oth._0);
+    }
+    public override int GetHashCode() {
+      ulong hash = 5381;
+      hash = ((hash << 5) + hash) + 0;
+      hash = ((hash << 5) + hash) + ((ulong)Dafny.Helpers.GetHashCode(this._0));
+      return (int)hash;
+    }
+    public override string ToString() {
+      string s = "";
+      s += "(";
+      s += Dafny.Helpers.ToString(this._0);
+      s += ")";
+      return s;
+    }
+    public static _ITuple1<T0> Default(T0 _default_T0) {
+      return create(_default_T0);
+    }
+    public static Dafny.TypeDescriptor<_System._ITuple1<T0>> _TypeDescriptor(Dafny.TypeDescriptor<T0> _td_T0) {
+      return new Dafny.TypeDescriptor<_System._ITuple1<T0>>(_System.Tuple1<T0>.Default(_td_T0.Default()));
+    }
+    public static _ITuple1<T0> create(T0 _0) {
+      return new Tuple1<T0>(_0);
+    }
+    public T0 dtor__0 {
+      get {
+        return this._0;
+      }
+    }
+  }
+  
   public interface _ITuple2<out T0, out T1> {
     T0 dtor__0 { get; }
     T1 dtor__1 { get; }

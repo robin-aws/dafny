@@ -338,8 +338,8 @@ namespace Microsoft.Dafny {
       argumentGhostness = argumentGhostness ?? new bool[dims].Select(_ => false).ToList();
       if (!tupleTypeDecls.TryGetValue(argumentGhostness, out tt)) {
         Contract.Assume(allowCreationOfNewType);  // the parser should ensure that all needed tuple types exist by the time of resolution
-        // tuple#2 is already defined in DafnyRuntime.cs
-        var attributes = dims == 2 && !argumentGhostness.Contains(true) ? DontCompile() : null;
+        // TODO-HACK: Assume all needed types are already in the runtime
+        var attributes = !argumentGhostness.Contains(true) ? DontCompile() : null;
         tt = new TupleTypeDecl(argumentGhostness, SystemModule, attributes);
         tupleTypeDecls.Add(argumentGhostness, tt);
         SystemModule.TopLevelDecls.Add(tt);

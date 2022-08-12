@@ -381,6 +381,7 @@ bool IsParenStar() {
 bool IsEquivOp() => IsEquivOp(la);
 bool IsImpliesOp() => IsImpliesOp(la);
 bool IsExpliesOp() => IsExpliesOp(la);
+bool IsToOp() => IsToOp(la);
 bool IsAndOp() => IsAndOp(la);
 bool IsOrOp() => IsOrOp(la);
 static bool IsEquivOp(IToken la) {
@@ -391,6 +392,9 @@ static bool IsImpliesOp(IToken la) {
 }
 static bool IsExpliesOp(IToken la) {
   return la.val == "<==" || la.val == "\u21d0";
+}
+static bool IsToOp(IToken la) {
+  return la.val == "to";
 }
 static bool IsAndOp(IToken la) {
   return la.val == "&&" || la.val == "\u2227";
@@ -3735,7 +3739,7 @@ EquivExpression<out Expression e0, bool allowLemma, bool allowLambda, bool allow
 ImpliesExpliesExpression<out Expression e0, bool allowLemma, bool allowLambda, bool allowBitwiseOps>
 = (. Contract.Ensures(Contract.ValueAtReturn(out e0) != null); IToken/*!*/ x;  Expression/*!*/ e1; .)
   LogicalExpression<out e0, allowLemma, allowLambda, allowBitwiseOps>
-  [ IF(IsImpliesOp() || IsExpliesOp())  /* read an ImpliesExpliesExpression as far as possible */
+  [ IF(IsImpliesOp() || IsExpliesOp() || IsToOp())  /* read an ImpliesExpliesExpression as far as possible */
     /* Note, the asymmetry in the parsing of implies and explies expressions stems from the fact that
      * implies is right associative whereas reverse implication is left associative
      */
@@ -3751,6 +3755,9 @@ ImpliesExpliesExpression<out Expression e0, bool allowLemma, bool allowLambda, b
                                                               .)
       }
       [ IF(IsImpliesOp()) ImpliesOp (. SemErr(t, "Ambiguous use of ==> and <==. Use parentheses to disambiguate."); .) ]
+    // TODO: Hack
+    | ident                                                   (. x = t; .)
+      LogicalExpression<out e1, allowLemma, allowLambda, allowBitwiseOps>       (. e0 = new SeqDisplayExpr(x, new List<Expression>()); .)
     )
   ]
   .

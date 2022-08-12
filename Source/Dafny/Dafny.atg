@@ -2872,6 +2872,13 @@ UpdateStmt<out Statement/*!*/ s>
         "assume"                   (. suchThatAssume = t; .)
       ]
       Expression<out suchThat, false, true>
+    | "<" "-"                      (. x = Token.NoToken; .)
+      Expression<out e, false, true, false>        (. /* Ignore for now */ .)
+      "|"
+      [ IF(la.kind == _assume)     /* an Expression can also begin with an "assume", so this says to resolve it to pick up any "assume" here */
+        "assume"                   (. suchThatAssume = t; .)
+      ]
+      Expression<out suchThat, false, true>
     | ":-"                         (. x = t; .)
       [ IF(IsAssumeTypeKeyword(la))     /* an Expression can also begin with these keywords, so this says to resolve it to pick up the keyword here */
         ("expect"|"assert"|"assume")    (. keywordToken = t; .)
@@ -3013,6 +3020,13 @@ VarDeclStatement<.out Statement/*!*/ s.>
       }
     | { Attribute<ref attrs> }
       ":|"                           (. assignTok = t; .)
+      [ IF(la.kind == _assume)       /* an Expression can also begin with an "assume", so this says to resolve it to pick up any "assume" here */
+        "assume"                     (. suchThatAssume = t; .)
+      ]
+      Expression<out suchThat, false, true>
+    | "<" "-"                        (. assignTok = Token.NoToken; .)
+      Expression<out suchThat, false, true, false>        (. /* Ignore for now */ .)
+      "|"
       [ IF(la.kind == _assume)       /* an Expression can also begin with an "assume", so this says to resolve it to pick up any "assume" here */
         "assume"                     (. suchThatAssume = t; .)
       ]
@@ -3310,15 +3324,23 @@ BindingGuard<out Expression e, bool allowLambda>
      BoundVar bv;  IToken x;
      Attributes attrs = null;
      Expression body;
+     e = dummyExpr; /* mute the warning */
   .)
   IdentTypeOptional<out bv>                    (. bvars.Add(bv); x = bv.tok; .)
   { ","
     IdentTypeOptional<out bv>                  (. bvars.Add(bv); .)
   }
   { Attribute<ref attrs> }
-  ":|"
-  Expression<out body, true, allowLambda>
-  (. e = new ExistsExpr(x, t, bvars, null, body, attrs); .)
+  (
+    ":|"
+    Expression<out body, true, allowLambda>
+    (. e = new ExistsExpr(x, t, bvars, null, body, attrs); .)
+  | "<" "-"
+    Expression<out body, false, true, false>        (. /* Ignore for now */ .)
+    "|"
+    Expression<out body, true, allowLambda>
+    (. e = new ExistsExpr(x, t, bvars, null, body, attrs); .)
+  )
   .
 
 
@@ -4432,6 +4454,16 @@ LetExprWithLHS<out Expression e, bool allowLemma, bool allowLambda, bool allowBi
     ( ":="
     | { Attribute<ref attrs> }
       ":|"                          (. exact = false;
+                                       foreach (var lhs in letLHSs) {
+                                         if (lhs.Arguments != null) {
+                                           SemErr(lhs.tok, "LHS of let-such-that expression must be variables, not general patterns");
+                                         }
+                                       }
+                                    .)
+    | "<" "-"
+      Expression<out e, false, true, false>        (. /* Ignore for now */ .)
+      "|"
+                                    (. exact = false;
                                        foreach (var lhs in letLHSs) {
                                          if (lhs.Arguments != null) {
                                            SemErr(lhs.tok, "LHS of let-such-that expression must be variables, not general patterns");

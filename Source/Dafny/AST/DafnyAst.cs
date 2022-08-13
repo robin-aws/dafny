@@ -10139,6 +10139,21 @@ namespace Microsoft.Dafny {
     }
   }
 
+  public class SeqRangeExpr : Expression {
+    public readonly Expression Start;
+    public readonly Expression End;
+    public readonly bool GoingUp;
+    public SeqRangeExpr(IToken tok, Expression start, Expression end, bool goingUp)
+      : base(tok) {
+      Contract.Requires(tok != null);
+      Contract.Requires(start != null);
+      Contract.Requires(end != null);
+      Start = start;
+      End = end;
+      GoingUp = goingUp;
+    }
+  }
+
   public class MemberSelectExpr : Expression {
     public readonly Expression Obj;
     public readonly string MemberName;

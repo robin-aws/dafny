@@ -381,7 +381,7 @@ bool IsParenStar() {
 bool IsEquivOp() => IsEquivOp(la);
 bool IsImpliesOp() => IsImpliesOp(la);
 bool IsExpliesOp() => IsExpliesOp(la);
-bool IsToOp() => IsToOp(la);
+bool IsRangeOp() => IsRangeOp(la);
 bool IsAndOp() => IsAndOp(la);
 bool IsOrOp() => IsOrOp(la);
 static bool IsEquivOp(IToken la) {
@@ -393,8 +393,8 @@ static bool IsImpliesOp(IToken la) {
 static bool IsExpliesOp(IToken la) {
   return la.val == "<==" || la.val == "\u21d0";
 }
-static bool IsToOp(IToken la) {
-  return la.val == "to";
+static bool IsRangeOp(IToken la) {
+  return la.val == "to" || la.val == "downto";
 }
 static bool IsAndOp(IToken la) {
   return la.val == "&&" || la.val == "\u2227";
@@ -3234,6 +3234,7 @@ ForLoopStmt<out Statement stmt>
 = (. Contract.Ensures(Contract.ValueAtReturn(out stmt) != null);
      IToken x;
      BoundVar loopIndex;
+     Expression over;
      Expression start;
      Expression end = null;
      bool goingUp = true;
@@ -3255,11 +3256,18 @@ ForLoopStmt<out Statement stmt>
   { Attribute<ref attrs> }
   IdentTypeOptional<out loopIndex>
   ":="
-  Expression<out start, false, false>
-  ForLoopDirection<out goingUp>
-  ( Expression<out end, false, false>
-  | "*"
-  )
+  Expression<out over, false, false>
+  (. 
+    if (over is SeqRangeExpr range) {
+      start = range.Start;
+      end = range.End;
+      goingUp = range.GoingUp;
+    } else {
+      SemErr(over.tok, "A 'for' loop must iterate over a range expression");
+      start = dummyExpr;
+      end = dummyExpr;
+    }
+  .)
   LoopSpec<invariants, decreases, ref mod, ref decAttrs, ref modAttrs>
   ( IF(la.kind == _lbrace)      /* if there's an open brace, claim it as the beginning of the loop body (as opposed to a BlockStmt following the loop) */
     BlockStmt<out body, out bodyStart, out bodyEnd>  (. endTok = body.EndTok; isDirtyLoop = false; .)
@@ -3759,9 +3767,9 @@ EquivExpression<out Expression e0, bool allowLemma, bool allowLambda, bool allow
 
 /*------------------------------------------------------------------------*/
 ImpliesExpliesExpression<out Expression e0, bool allowLemma, bool allowLambda, bool allowBitwiseOps>
-= (. Contract.Ensures(Contract.ValueAtReturn(out e0) != null); IToken/*!*/ x;  Expression/*!*/ e1; .)
+= (. Contract.Ensures(Contract.ValueAtReturn(out e0) != null); IToken/*!*/ x;  Expression/*!*/ e1; bool goingUp;.)
   LogicalExpression<out e0, allowLemma, allowLambda, allowBitwiseOps>
-  [ IF(IsImpliesOp() || IsExpliesOp() || IsToOp())  /* read an ImpliesExpliesExpression as far as possible */
+  [ IF(IsImpliesOp() || IsExpliesOp() || IsRangeOp())  /* read an ImpliesExpliesExpression as far as possible */
     /* Note, the asymmetry in the parsing of implies and explies expressions stems from the fact that
      * implies is right associative whereas reverse implication is left associative
      */
@@ -3777,9 +3785,8 @@ ImpliesExpliesExpression<out Expression e0, bool allowLemma, bool allowLambda, b
                                                               .)
       }
       [ IF(IsImpliesOp()) ImpliesOp (. SemErr(t, "Ambiguous use of ==> and <==. Use parentheses to disambiguate."); .) ]
-    // TODO: Hack
-    | ident                                                   (. x = t; .)
-      LogicalExpression<out e1, allowLemma, allowLambda, allowBitwiseOps>       (. e0 = new SeqDisplayExpr(x, new List<Expression>()); .)
+    | ForLoopDirection<out goingUp>                                             
+      LogicalExpression<out e1, allowLemma, allowLambda, allowBitwiseOps>       (. e0 = new SeqRangeExpr(t, e0, e1, goingUp); .)
     )
   ]
   .

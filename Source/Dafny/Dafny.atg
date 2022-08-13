@@ -3260,7 +3260,7 @@ ForLoopStmt<out Statement stmt>
   (. 
     if (over is SeqRangeExpr range) {
       start = range.Start;
-      end = range.End;
+      end = range.End is WildcardExpr ? null : range.End;
       goingUp = range.GoingUp;
     } else {
       SemErr(over.tok, "A 'for' loop must iterate over a range expression");
@@ -3786,7 +3786,7 @@ ImpliesExpliesExpression<out Expression e0, bool allowLemma, bool allowLambda, b
       }
       [ IF(IsImpliesOp()) ImpliesOp (. SemErr(t, "Ambiguous use of ==> and <==. Use parentheses to disambiguate."); .) ]
     | ForLoopDirection<out goingUp>                                             
-      LogicalExpression<out e1, allowLemma, allowLambda, allowBitwiseOps>       (. e0 = new SeqRangeExpr(t, e0, e1, goingUp); .)
+      PossiblyWildExpression<out e1, allowLambda, true>       (. e0 = new SeqRangeExpr(t, e0, e1, goingUp); .)
     )
   ]
   .

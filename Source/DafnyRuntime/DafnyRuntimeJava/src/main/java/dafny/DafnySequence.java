@@ -104,6 +104,7 @@ public abstract class DafnySequence<T> implements Iterable<T> {
     }
 
     public static DafnySequence<Character> asString(String s){
+        s.codePoints();
         return new StringDafnySequence(s);
     }
 

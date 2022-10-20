@@ -4,6 +4,7 @@ import subprocess
 import sys
 import os
 import json
+import shutil
 from pathlib import Path
 
 def run_subprocess(cmd: str, *args: str, check = True, **kwargs) -> subprocess.CompletedProcess:
@@ -39,7 +40,11 @@ def smt_dir_path(version, program):
   
 def dump_smt_for_version(version, dafny_dir, program):
   prover_log_path = smt_dir_path(version, program)
-  if os.path.isdir(prover_log_path):
+  if version == "local":
+    # Don't maintain old state
+    shutil.rmtree(prover_log_path)
+
+  elif os.path.isdir(prover_log_path):
     progress(f"{prover_log_path} already exists, reusing")
     return
 
@@ -54,18 +59,24 @@ def dump_smt_for_version(version, dafny_dir, program):
          check = False)
 
 def get_and_build_dafny(version):
-  root = Path("dafny_sources")
-  version_dir = root / version
-  if version_dir.exists():
-    return version_dir
+  if version == "local":
+    version_dir = Path(".")
+    old_dir = os.getcwd()
+    os.chdir(version_dir)
+  else:
+    root = Path("dafny_sources")
+    version_dir = root / version
+    if version_dir.exists():
+      return version_dir
 
-  version_dir.mkdir(parents=True, exist_ok=True)
+    version_dir.mkdir(parents=True, exist_ok=True)
 
-  git("clone", "https://github.com/dafny-lang/dafny.git", version_dir)
-  old_dir = os.getcwd()
-  os.chdir(version_dir)
-  git("checkout", version)
-  make("z3-mac")
+    git("clone", "https://github.com/dafny-lang/dafny.git", version_dir)
+    old_dir = os.getcwd()
+    os.chdir(version_dir)
+    git("checkout", version)
+    make("z3-mac")
+
   make("exe")
   os.chdir(old_dir)
   return version_dir

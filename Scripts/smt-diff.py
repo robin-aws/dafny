@@ -11,7 +11,7 @@ def run_subprocess(cmd: str, *args: str, check = True, **kwargs) -> subprocess.C
     result = subprocess.run([cmd, *args], # pylint: disable=subprocess-run-check
         **{"capture_output": True, "check": False, "encoding": "utf-8", **kwargs})
     if check and result.returncode != 0:
-      raise Exception(result.stderr)
+      raise Exception(result.stdout + result.stderr)
     return result
 
 def git(cmd: str, *args: str, **kwargs) -> subprocess.CompletedProcess:
@@ -20,13 +20,11 @@ def git(cmd: str, *args: str, **kwargs) -> subprocess.CompletedProcess:
 def dotnet(cmd: str, *args: str, **kwargs) -> subprocess.CompletedProcess:
     return run_subprocess("dotnet", *[cmd, *args], **kwargs)
 
-def dafny(dir: str, *args: str, **kwargs) -> subprocess.CompletedProcess:
-    # Attempting to make this work for Macs...
-    # main_dll = f"{dir}/Dafny.dll"
-    # if not os.path.isfile(main_dll):
-    #   main_dll = f"{dir}/DafnyPipeline.dll"
-    # return dotnet(main_dll, *args, **kwargs)
-    return dotnet(f"{dir}/dafny", *args, **kwargs)
+def dafny(dir: Path, *args: str, **kwargs) -> subprocess.CompletedProcess:
+    cmd = dir / "Scripts" / "dafny"
+    if not os.path.isfile(cmd):
+      cmd = dir / "dafny"
+    return run_subprocess(cmd, *args, **kwargs)
 
 def make(cmd: str, *args: str, **kwargs) -> subprocess.CompletedProcess:
     return run_subprocess("make", *[cmd, *args], **kwargs)
@@ -34,39 +32,46 @@ def make(cmd: str, *args: str, **kwargs) -> subprocess.CompletedProcess:
 def progress(msg: str="", **kwargs) -> None:
     print(msg, **{"file": sys.stderr, "flush": True, **kwargs})
 
-def smt_file_path(version, program):
-  version_dir = f"dafny_releases/smt/{version}"
-  if not os.path.isdir(version_dir):
-    os.makedirs(version_dir)
-
+def smt_dir_path(version, program):
+  version_dir = f"smt/{version}"
   program_basename = Path(program).stem
-  return f"{version_dir}/{program_basename}.smt2"
+  return f"{version_dir}/{program_basename}"
   
-def dump_smt_for_version(version, program):
-  prover_log_path = smt_file_path(version, program)
-  if os.path.isfile(prover_log_path):
+def dump_smt_for_version(version, dafny_dir, program):
+  prover_log_path = smt_dir_path(version, program)
+  if os.path.isdir(prover_log_path):
     progress(f"{prover_log_path} already exists, reusing")
     return
 
+  os.makedirs(prover_log_path)
+  
   progress(f"Writing SMT log from {program} to {prover_log_path}...")
-  dafny(f"dafny_releases/binaries/{version}", 
+  dafny(dafny_dir, 
          "/compile:0", 
-         f"/proverLog:{prover_log_path}",
+         f"/proverLog:{prover_log_path}/@FILE@_@PROC@.smt2",
          "/proverOpt:SOLVER=noop",
-         program)
+         program,
+         check = False)
 
 def get_and_build_dafny(version):
-  git("clone", "https://github.com/dafny-lang/dafny.git", version)
-  os.chdir(version)
+  root = Path("dafny_sources")
+  version_dir = root / version
+  if version_dir.exists():
+    return version_dir
+
+  version_dir.mkdir(parents=True, exist_ok=True)
+
+  git("clone", "https://github.com/dafny-lang/dafny.git", version_dir)
+  old_dir = os.getcwd()
+  os.chdir(version_dir)
   git("checkout", version)
   make("z3-mac")
   make("exe")
-  os.chdir("..")
+  os.chdir(old_dir)
+  return version_dir
 
 def get_dafny_release(version):
-  if os.path.isdir(version):
-    return
-  os.mkdir(version)
+  os.makedirs(version)
   os.chdir(version)
   run_subprocess("wget", f"https://github.com/dafny-lang/dafny/releases/download/v{version}/dafny-{version}-x64-osx-10.14.2.zip")
   run_subprocess("unzip", f"dafny-{version}-x64-osx-10.14.2.zip")
@@ -78,32 +83,38 @@ def parse_arguments() -> argparse.Namespace:
   parser.add_argument("--program", help="Target Dafny program")
   return parser.parse_args()
 
-def compare_versions(versions, program):
+def compare_versions(versions, dafny_dirs, program):
   previous_version = None
   for version in versions:
-    dump_smt_for_version(version, program)
+    dump_smt_for_version(version, dafny_dirs[version], program)
 
     if previous_version is not None:
-      result = run_subprocess("diff", "-q", 
-        smt_file_path(previous_version, program),
-        smt_file_path(version, program),
-        check = False)
+      result = run_subprocess("diff", "-rq", 
+        smt_dir_path(previous_version, program),
+        smt_dir_path(version, program))
       progress(result.stdout)
     previous_version = version
 
 def main() -> None:
   args = parse_arguments()
   
-  versions = None
+  version_dirs = {}
   if args.version:
     versions = args.version
+
+    for version in versions:
+      version_dirs[version] = get_and_build_dafny(version)
   else:
-    cache_file = Path("dafny_releases/releases.json")
+    root = Path("dafny_releases")
+    cache_file = root / "releases.json"
     bs = cache_file.read_bytes()
     js = json.loads(bs.decode("utf-8"))
     versions = reversed([r["tag_name"] for r in js ])
+    
+    for version in versions:
+      version_dirs[version] = root / "binaries" / version
 
-  compare_versions(versions, args.program)
+  compare_versions(versions, version_dirs, args.program)
 
 if __name__ == "__main__":
     main()

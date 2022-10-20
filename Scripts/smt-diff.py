@@ -40,13 +40,13 @@ def smt_dir_path(version, program):
   
 def dump_smt_for_version(version, dafny_dir, program):
   prover_log_path = smt_dir_path(version, program)
-  if version == "local":
-    # Don't maintain old state
-    shutil.rmtree(prover_log_path)
-
-  elif os.path.isdir(prover_log_path):
-    progress(f"{prover_log_path} already exists, reusing")
-    return
+  if os.path.isdir(prover_log_path):
+    if version == "local":
+      # Don't maintain old state
+      shutil.rmtree(prover_log_path)
+    else:
+      progress(f"{prover_log_path} already exists, reusing")
+      return
 
   os.makedirs(prover_log_path)
   
@@ -63,6 +63,12 @@ def get_and_build_dafny(version):
     version_dir = Path(".")
     old_dir = os.getcwd()
     os.chdir(version_dir)
+
+    # Remove generated code locations, which have changed over time
+    Path(version_dir / "Source" / "Dafny" / "Scanner.cs").unlink(missing_ok=True)
+    Path(version_dir / "Source" / "Dafny" / "Parser.cs").unlink(missing_ok=True)
+    Path(version_dir / "Source" / "DafnyCore" / "Scanner.cs").unlink(missing_ok=True)
+    Path(version_dir / "Source" / "DafnyCore" / "Parser.cs").unlink(missing_ok=True)
   else:
     root = Path("dafny_sources")
     version_dir = root / version

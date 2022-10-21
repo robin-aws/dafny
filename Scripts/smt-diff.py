@@ -41,12 +41,13 @@ def smt_dir_path(version, program):
 def dump_smt_for_version(version, dafny_dir, program):
   prover_log_path = smt_dir_path(version, program)
   if os.path.isdir(prover_log_path):
-    if version == "local":
+    if version.startswith("local"):
       # Don't maintain old state
+      progress(f"Deleting smt files for 'local': {prover_log_path}")
       shutil.rmtree(prover_log_path)
     else:
       progress(f"{prover_log_path} already exists, reusing")
-      return
+      return prover_log_path
 
   os.makedirs(prover_log_path)
   
@@ -57,6 +58,7 @@ def dump_smt_for_version(version, dafny_dir, program):
          "/proverOpt:SOLVER=noop",
          program,
          check = False)
+  return prover_log_path
 
 def get_and_build_dafny(version):
   if version == "local":
@@ -98,6 +100,8 @@ def parse_arguments() -> argparse.Namespace:
   parser = argparse.ArgumentParser(description="Dafny release helper")
   parser.add_argument("version", nargs='*', help="Dafny version (can be provided multiple times)")
   parser.add_argument("--program", help="Target Dafny program")
+  parser.add_argument("--check", dest='check', action='store_true')
+  
   return parser.parse_args()
 
 def compare_versions(versions, dafny_dirs, program):
@@ -131,7 +135,19 @@ def main() -> None:
     for version in versions:
       version_dirs[version] = root / "binaries" / version
 
-  compare_versions(versions, version_dirs, args.program)
+  if args.check:
+    for version in versions:
+      dafny_dir = version_dirs[version]
+      first = dump_smt_for_version(version, dafny_dir, args.program)
+      second = dump_smt_for_version(version + "-2", dafny_dir, args.program)
+      try:
+        run_subprocess("diff", "-rq", first, second)
+      except:
+        pass
+      else:
+        raise Exception("No difference!")
+  else:
+    compare_versions(versions, version_dirs, args.program)
 
 if __name__ == "__main__":
     main()

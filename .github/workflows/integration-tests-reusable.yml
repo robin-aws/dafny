@@ -28,7 +28,7 @@ jobs:
       - name: Populate OS list (one platform)
         id: populate-os-list-one
         if: "!inputs.all_platforms"
-        run: echo "::set-output name=os-list::[\"ubuntu-18.04\"]"
+        run: echo "::set-output name=os-list::[\"windows-2019\"]"
       - name: Populate OS mapping for package.py
         id: populate-os-mapping
         run: |

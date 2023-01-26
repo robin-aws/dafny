@@ -839,7 +839,7 @@ namespace Microsoft.Dafny.Compilers {
       } else {
         wr.Write($"{DafnyRuntimeModule}.string_of(");
         TrExpr(arg, wr, false, wStmts);
-        wr.WriteLine(")");
+        wr.Write(")");
       }
     }
 
@@ -1479,8 +1479,8 @@ namespace Microsoft.Dafny.Compilers {
 
         case BinaryExpr.ResolvedOpcode.Add:
         case BinaryExpr.ResolvedOpcode.Concat:
-          if (resultType.IsCharType) {
-            staticCallString = UnicodeCharEnabled ? $"{DafnyRuntimeModule}.plus_unicode_char" : $"{DafnyRuntimeModule}.plus_char";
+          if (resultType.IsCharType && !UnicodeCharEnabled) {
+            staticCallString = $"{DafnyRuntimeModule}.plus_char";
           } else {
             if (resultType.IsNumericBased() || resultType.IsBitVectorType || resultType.IsBigOrdinalType) {
               truncateResult = true;
@@ -1493,8 +1493,8 @@ namespace Microsoft.Dafny.Compilers {
         case BinaryExpr.ResolvedOpcode.SetDifference:
         case BinaryExpr.ResolvedOpcode.MultiSetDifference:
         case BinaryExpr.ResolvedOpcode.MapSubtraction:
-          if (resultType.IsCharType) {
-            staticCallString = UnicodeCharEnabled ? $"{DafnyRuntimeModule}.minus_unicode_char" : $"{DafnyRuntimeModule}.minus_char";
+          if (resultType.IsCharType && !UnicodeCharEnabled) {
+            staticCallString = $"{DafnyRuntimeModule}.minus_char";
           } else {
             if (resultType.IsNumericBased() || resultType.IsBitVectorType || resultType.IsBigOrdinalType) {
               truncateResult = true;
@@ -1769,10 +1769,7 @@ namespace Microsoft.Dafny.Compilers {
         }
       }
       rd.Close();
-      if (externFilename.EndsWith(".py")) {
-        return externFilename.Substring(0, externFilename.Length - 3);
-      }
-      return null;
+      return externFilename.EndsWith(".py") ? externFilename[..^3] : null;
     }
 
     static bool CopyExternLibraryIntoPlace(string externFilename, string mainProgram, TextWriter outputWriter) {

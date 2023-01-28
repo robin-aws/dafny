@@ -3825,20 +3825,6 @@ namespace Microsoft.Dafny.Compilers {
         var udtTo = (UserDefinedType)to.NormalizeExpand();
         return udtFrom.TypeArgs[0].IsTypeParameter && !udtTo.TypeArgs[0].IsTypeParameter;
       }
-      
-      // if (from.IsArrowType && to.IsArrowType) {
-      //   ArrowType fat = from.AsArrowType, tat = to.AsArrowType;
-      //   if (IsCoercionNecessary(fat.Result, tat.Result)) {
-      //     return true;
-      //   }
-      //   for (int i = 0; i < fat.Args.Count; i++) {
-      //     if (IsCoercionNecessary(tat.Args[i], fat.Args[i])) {
-      //       return true;
-      //     }
-      //   }
-      //
-      //   return false;
-      // }
 
       return false;
     }

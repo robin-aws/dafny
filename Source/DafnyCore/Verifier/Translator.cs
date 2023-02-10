@@ -1545,7 +1545,7 @@ namespace Microsoft.Dafny {
     }
     static bool IsOpaque(MemberDecl f) {
       Contract.Requires(f != null);
-      return Attributes.Contains(f.Attributes, "opaque");
+      return Attributes.Contains(f.Attributes, "opaque") || f.IsOpaque;
     }
     static bool IsOpaqueRevealLemma(Method m) {
       Contract.Requires(m != null);
@@ -5656,7 +5656,7 @@ namespace Microsoft.Dafny {
         functionHandles[f] = name;
         var args = new List<Bpl.Expr>();
         var vars = MkTyParamBinders(GetTypeParams(f), out args);
-        var formals = MkTyParamFormals(GetTypeParams(f), false, false);
+        var formals = MkTyParamFormals(GetTypeParams(f), false);
         var tyargs = new List<Bpl.Expr>();
         foreach (var fm in f.Formals) {
           tyargs.Add(TypeToTy(fm.Type));
@@ -7180,6 +7180,10 @@ namespace Microsoft.Dafny {
         Contract.Ensures(Contract.Result<IToken>() != null);
         var ftok = tok as ForceCheckToken;
         return ftok != null ? ftok.WrappedToken : tok;
+      }
+
+      public override IToken WithVal(string newVal) {
+        return new ForceCheckToken(WrappedToken.WithVal(newVal));
       }
     }
 
@@ -8963,7 +8967,8 @@ namespace Microsoft.Dafny {
         builder.Add(new Bpl.HavocCmd(tok, new List<Bpl.IdentifierExpr> { nw }));
         // assume $nw != null && dtype($nw) == RHS;
         var nwNotNull = Bpl.Expr.Neq(nw, predef.Null);
-        var rightType = DType(nw, TypeToTy(type));
+        // drop the dtype conjunct if the type is "object", because "new object" allocates an object of an arbitrary type
+        var rightType = type.IsObjectQ ? Bpl.Expr.True : DType(nw, TypeToTy(type));
         builder.Add(TrAssumeCmd(tok, Bpl.Expr.And(nwNotNull, rightType)));
       }
       // assume !$Heap[$nw, alloc];

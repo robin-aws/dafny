@@ -34,7 +34,7 @@ namespace Microsoft.Dafny {
 
     private readonly ExecutionEngine engine;
 
-    private DafnyDriver(DafnyOptions dafnyOptions) {
+    public DafnyDriver(DafnyOptions dafnyOptions) {
       Options = dafnyOptions;
       engine = ExecutionEngine.CreateWithoutSharedCache(dafnyOptions);
     }

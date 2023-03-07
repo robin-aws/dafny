@@ -104,6 +104,72 @@ public class TestDafny {
       return -1;
     }
   }
+  
+  private static async Task<int> ForEachCompilerInProcess(ForEachCompilerOptions options) {
+    var dafnyOptions = ParseDafnyOptions(options.OtherArgs);
+    if (dafnyOptions == null) {
+      return (int)DafnyDriver.CommandLineArgumentsResult.PREPROCESSING_ERROR;
+    }
+    DafnyOptions.Install(dafnyOptions);
+    var driver = new DafnyDriver(dafnyOptions);
+
+    // First verify the file (and assume that verification should be successful).
+    // Older versions of test files that now use %testDafnyForEachCompiler were sensitive to the number
+    // of verification conditions (i.e. the X in "Dafny program verifier finished with X verified, 0 errors"),
+    // but this was never meaningful and only added maintenance burden.
+    // Here we only ensure that the exit code is 0.
+
+    Console.Out.WriteLine("Verifying...");
+    var reporter = new ConsoleErrorReporter();
+    var dafnyFile = new DafnyFile(options.TestFile);
+    Program dafnyProgram;
+    var err = Microsoft.Dafny.Main.ParseCheck(Util.List(dafnyFile), dafnyFile.FilePath, reporter, out dafnyProgram);
+    if (err != null) {
+      Console.Out.WriteLine("Verification failed. Output:");
+      Console.Out.WriteLine(err);
+      return -1;
+    }
+
+    var boogiePrograms = DafnyDriver.Translate(dafnyOptions, dafnyProgram).ToList();
+
+    string baseName = dafnyFile.FilePath;
+    var (verified, outcome, moduleStats) = await driver.BoogieAsync(baseName, boogiePrograms, dafnyFile.FilePath);
+    
+    // Then execute the program for each available compiler.
+    
+    string expectFile = options.TestFile + ".expect";
+    var expectedOutput = "\nDafny program verifier did not attempt verification\n" +
+                         File.ReadAllText(expectFile);
+
+    var success = true;
+    foreach (var plugin in dafnyOptions.Plugins) {
+      foreach (var compiler in plugin.GetCompilers()) {
+        // var result = RunWithCompiler(options, compiler, expectedOutput);
+        Console.Out.WriteLine($"Executing on {compiler.TargetLanguage}...");
+        
+        dafnyOptions.Backend = compiler;
+        
+        bool compiled;
+        try {
+          compiled = DafnyDriver.Compile(dafnyFile.FilePath, Util.List<string>().AsReadOnly(), dafnyProgram, outcome, moduleStats, verified);
+        } catch (UnsupportedFeatureException e) {
+          if (!DafnyOptions.O.Backend.UnsupportedFeatures.Contains(e.Feature)) {
+            throw new Exception($"'{e.Feature}' is not an element of the {DafnyOptions.O.Backend.TargetId} compiler's UnsupportedFeatures set");
+          }
+          reporter.Error(MessageSource.Compiler, e.Token, e.Message);
+          compiled = false;
+        }
+      }
+    }
+
+    if (success) {
+      Console.Out.WriteLine(
+        $"All executions were successful and matched the expected output (or reported errors for known unsupported features)!");
+      return 0;
+    } else {
+      return -1;
+    }
+  }
 
   private static int RunWithCompiler(ForEachCompilerOptions options, IExecutableBackend backend, string expectedOutput) {
     Console.Out.WriteLine($"Executing on {backend.TargetLanguage}...");

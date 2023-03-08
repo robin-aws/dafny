@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using CommandLine;
 using Microsoft.Dafny;
 using Microsoft.Dafny.Plugins;
-using Nerdbank.Streams;
 using XUnitExtensions;
 using XUnitExtensions.Lit;
 

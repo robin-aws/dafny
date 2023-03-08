@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using CommandLine;
 using Microsoft.Dafny;
 using Microsoft.Dafny.Plugins;
+using Nerdbank.Streams;
 using XUnitExtensions;
 using XUnitExtensions.Lit;
 
@@ -38,7 +39,7 @@ public class TestDafny {
     });
     var parseResult = parser.ParseArguments<ForEachCompilerOptions, FeaturesOptions>(args);
     parseResult.WithParsed<ForEachCompilerOptions>(options => {
-      result = ForEachCompiler(options);
+      result = ForEachCompilerInProcess(options).Result;
     }).WithParsed<FeaturesOptions>(options => {
       result = GenerateCompilerTargetSupportTable(options);
     });
@@ -52,59 +53,6 @@ public class TestDafny {
     return success ? dafnyOptions : null;
   }
 
-  private static int ForEachCompiler(ForEachCompilerOptions options) {
-    var dafnyOptions = ParseDafnyOptions(options.OtherArgs);
-    if (dafnyOptions == null) {
-      return (int)DafnyDriver.CommandLineArgumentsResult.PREPROCESSING_ERROR;
-    }
-
-    // First verify the file (and assume that verification should be successful).
-    // Older versions of test files that now use %testDafnyForEachCompiler were sensitive to the number
-    // of verification conditions (i.e. the X in "Dafny program verifier finished with X verified, 0 errors"),
-    // but this was never meaningful and only added maintenance burden.
-    // Here we only ensure that the exit code is 0.
-
-    var dafnyArgs = new List<string>(options.OtherArgs) {
-      $"/compile:0",
-      options.TestFile!
-    };
-
-    Console.Out.WriteLine("Verifying...");
-
-    var (exitCode, output, error) = RunDafny(options.DafnyCliPath, dafnyArgs);
-    if (exitCode != 0) {
-      Console.Out.WriteLine("Verification failed. Output:");
-      Console.Out.WriteLine(output);
-      Console.Out.WriteLine("Error:");
-      Console.Out.WriteLine(error);
-      return exitCode;
-    }
-
-    // Then execute the program for each available compiler.
-
-    string expectFile = options.TestFile + ".expect";
-    var expectedOutput = "\nDafny program verifier did not attempt verification\n" +
-                         File.ReadAllText(expectFile);
-
-    var success = true;
-    foreach (var plugin in dafnyOptions.Plugins) {
-      foreach (var compiler in plugin.GetCompilers()) {
-        var result = RunWithCompiler(options, compiler, expectedOutput);
-        if (result != 0) {
-          success = false;
-        }
-      }
-    }
-
-    if (success) {
-      Console.Out.WriteLine(
-        $"All executions were successful and matched the expected output (or reported errors for known unsupported features)!");
-      return 0;
-    } else {
-      return -1;
-    }
-  }
-  
   private static async Task<int> ForEachCompilerInProcess(ForEachCompilerOptions options) {
     var dafnyOptions = ParseDafnyOptions(options.OtherArgs);
     if (dafnyOptions == null) {
@@ -113,39 +61,53 @@ public class TestDafny {
     DafnyOptions.Install(dafnyOptions);
     var driver = new DafnyDriver(dafnyOptions);
 
+    var localOut = new StringWriter();
+    var actualOut = Console.Out;
+    Console.SetOut(localOut);
+    var localError = new StringWriter();
+    var actualError = Console.Error;
+    Console.SetError(localError);
+    
     // First verify the file (and assume that verification should be successful).
     // Older versions of test files that now use %testDafnyForEachCompiler were sensitive to the number
     // of verification conditions (i.e. the X in "Dafny program verifier finished with X verified, 0 errors"),
     // but this was never meaningful and only added maintenance burden.
-    // Here we only ensure that the exit code is 0.
+    // Here we only ensure that verification is successful.
 
-    Console.Out.WriteLine("Verifying...");
+    actualOut.WriteLine("Parsing and resolving...");
     var reporter = new ConsoleErrorReporter();
     var dafnyFile = new DafnyFile(options.TestFile);
-    Program dafnyProgram;
-    var err = Microsoft.Dafny.Main.ParseCheck(Util.List(dafnyFile), dafnyFile.FilePath, reporter, out dafnyProgram);
+    var err = Microsoft.Dafny.Main.ParseCheck(Util.List(dafnyFile), dafnyFile.FilePath, reporter, out var dafnyProgram);
     if (err != null) {
-      Console.Out.WriteLine("Verification failed. Output:");
-      Console.Out.WriteLine(err);
+      actualOut.Write(localOut);
+      actualOut.WriteLine(err);
       return -1;
     }
 
+    Console.Out.WriteLine("Verifying...");
     var boogiePrograms = DafnyDriver.Translate(dafnyOptions, dafnyProgram).ToList();
-
-    string baseName = dafnyFile.FilePath;
+    var baseName = dafnyFile.FilePath;
     var (verified, outcome, moduleStats) = await driver.BoogieAsync(baseName, boogiePrograms, dafnyFile.FilePath);
     
     // Then execute the program for each available compiler.
+    // Note we DON'T first check if the program verified above
+    // because that's also what DafnyDriver.ProcessFilesAsync does:
+    // it relies on Compile() to check that (and possibly compile even if verification failed or didn't run
+    // based on ForceCompile or SpillTargetCode). 
     
-    string expectFile = options.TestFile + ".expect";
-    var expectedOutput = "\nDafny program verifier did not attempt verification\n" +
-                         File.ReadAllText(expectFile);
+    var expectFile = options.TestFile + ".expect";
+    var expectedOutput = File.ReadAllText(expectFile);
 
     var success = true;
     foreach (var plugin in dafnyOptions.Plugins) {
       foreach (var compiler in plugin.GetCompilers()) {
-        // var result = RunWithCompiler(options, compiler, expectedOutput);
-        Console.Out.WriteLine($"Executing on {compiler.TargetLanguage}...");
+        actualOut.WriteLine($"Executing on {compiler.TargetLanguage}...");
+        
+        // Reset the local stdout buffer so we can just capture the execution output.
+        localOut = new StringWriter();
+        Console.SetOut(localOut);
+        localError = new StringWriter();
+        Console.SetError(localError);
         
         dafnyOptions.Backend = compiler;
         
@@ -159,6 +121,26 @@ public class TestDafny {
           reporter.Error(MessageSource.Compiler, e.Token, e.Message);
           compiled = false;
         }
+        
+        var output = localOut.ToString();
+        var error = localError.ToString();
+
+        if (!compiled) {
+          if (error == "" && OnlyUnsupportedFeaturesErrors(compiler, output)) {
+            // All good!
+          } else {
+            actualOut.WriteLine("Execution failed, for reasons other than known unsupported features. Output:");
+            actualOut.WriteLine(output);
+            actualOut.WriteLine("Error:");
+            actualOut.WriteLine(error);
+          }
+        } else {
+          var diffMessage = AssertWithDiff.GetDiffMessage(expectedOutput, output);
+          if (diffMessage != null) {
+            actualOut.WriteLine(diffMessage);
+            success = false;
+          }
+        }
       }
     }
 
@@ -169,42 +151,6 @@ public class TestDafny {
     } else {
       return -1;
     }
-  }
-
-  private static int RunWithCompiler(ForEachCompilerOptions options, IExecutableBackend backend, string expectedOutput) {
-    Console.Out.WriteLine($"Executing on {backend.TargetLanguage}...");
-    var dafnyArgs = new List<string>(options.OtherArgs) {
-      options.TestFile!,
-      // Here we can pass /noVerify to save time since we already verified the program. 
-      "/noVerify",
-      // /noVerify is interpreted pessimistically as "did not get verification success",
-      // so we have to force compiling and running despite this.
-      "/compile:4",
-      $"/compileTarget:{backend.TargetId}"
-    };
-
-
-    var (exitCode, output, error) = RunDafny(options.DafnyCliPath, dafnyArgs);
-    if (exitCode == 0) {
-      var diffMessage = AssertWithDiff.GetDiffMessage(expectedOutput, output);
-      if (diffMessage == null) {
-        return 0;
-      }
-
-      Console.Out.WriteLine(diffMessage);
-      return 1;
-    }
-
-    // If we hit errors, check for known unsupported features for this compilation target
-    if (error == "" && OnlyUnsupportedFeaturesErrors(backend, output)) {
-      return 0;
-    }
-
-    Console.Out.WriteLine("Execution failed, for reasons other than known unsupported features. Output:");
-    Console.Out.WriteLine(output);
-    Console.Out.WriteLine("Error:");
-    Console.Out.WriteLine(error);
-    return exitCode;
   }
 
   private static (int, string, string) RunDafny(string? dafnyCLIPath, IEnumerable<string> arguments) {

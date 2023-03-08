@@ -58,7 +58,6 @@ public class TestDafny {
     if (dafnyOptions == null) {
       return (int)DafnyDriver.CommandLineArgumentsResult.PREPROCESSING_ERROR;
     }
-    DafnyOptions.Install(dafnyOptions);
     var driver = new DafnyDriver(dafnyOptions);
 
     var localOut = new StringWriter();
@@ -75,7 +74,7 @@ public class TestDafny {
     // Here we only ensure that verification is successful.
 
     actualOut.WriteLine("Parsing and resolving...");
-    var reporter = new ConsoleErrorReporter();
+    var reporter = new ConsoleErrorReporter(dafnyOptions);
     var dafnyFile = new DafnyFile(options.TestFile);
     var err = Microsoft.Dafny.Main.ParseCheck(Util.List(dafnyFile), dafnyFile.FilePath, reporter, out var dafnyProgram);
     if (err != null) {
@@ -87,7 +86,7 @@ public class TestDafny {
     Console.Out.WriteLine("Verifying...");
     var boogiePrograms = DafnyDriver.Translate(dafnyOptions, dafnyProgram).ToList();
     var baseName = dafnyFile.FilePath;
-    var (verified, outcome, moduleStats) = await driver.BoogieAsync(baseName, boogiePrograms, dafnyFile.FilePath);
+    var (verified, outcome, moduleStats) = await driver.BoogieAsync(dafnyOptions, baseName, boogiePrograms, dafnyFile.FilePath);
     
     // Then execute the program for each available compiler.
     // Note we DON'T first check if the program verified above
@@ -100,7 +99,7 @@ public class TestDafny {
 
     var success = true;
     foreach (var plugin in dafnyOptions.Plugins) {
-      foreach (var compiler in plugin.GetCompilers()) {
+      foreach (var compiler in plugin.GetCompilers(dafnyOptions)) {
         actualOut.WriteLine($"Executing on {compiler.TargetLanguage}...");
         
         // Reset the local stdout buffer so we can just capture the execution output.
@@ -115,8 +114,8 @@ public class TestDafny {
         try {
           compiled = DafnyDriver.Compile(dafnyFile.FilePath, Util.List<string>().AsReadOnly(), dafnyProgram, outcome, moduleStats, verified);
         } catch (UnsupportedFeatureException e) {
-          if (!DafnyOptions.O.Backend.UnsupportedFeatures.Contains(e.Feature)) {
-            throw new Exception($"'{e.Feature}' is not an element of the {DafnyOptions.O.Backend.TargetId} compiler's UnsupportedFeatures set");
+          if (!compiler.UnsupportedFeatures.Contains(e.Feature)) {
+            throw new Exception($"'{e.Feature}' is not an element of the {compiler.TargetId} compiler's UnsupportedFeatures set");
           }
           reporter.Error(MessageSource.Compiler, e.Token, e.Message);
           compiled = false;
@@ -224,7 +223,7 @@ public class TestDafny {
 
     // Header
     Console.Out.Write("| Feature |");
-    var allCompilers = dafnyOptions.Plugins.SelectMany(p => p.GetCompilers()).ToList();
+    var allCompilers = dafnyOptions.Plugins.SelectMany(p => p.GetCompilers(dafnyOptions)).ToList();
     foreach (var compiler in allCompilers) {
       Console.Out.Write($" {compiler.TargetLanguage} |");
     }

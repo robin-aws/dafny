@@ -90,9 +90,11 @@ namespace XUnitExtensions.Lit {
 
     protected static IEnumerable<string> ExpandGlobs(string chunk) {
       var matcher = new Matcher();
-      matcher.AddInclude(chunk);
-      var result = matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo("/")));
-      return result.Files.Select(f => "/" + f.Path);
+      var root = Path.GetPathRoot(chunk)!;
+      var rest = Path.GetRelativePath(root, chunk);
+      matcher.AddInclude(rest);
+      var result = matcher.Execute(new DirectoryInfoWrapper(new DirectoryInfo(root)));
+      return result.Files.Select(f => Path.Combine(root, f.Path));
     }
 
     public override string ToString() {

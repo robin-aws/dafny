@@ -82,7 +82,7 @@ public class TestDafny {
       return -1;
     }
 
-    Console.Out.WriteLine("Verifying...");
+    actualOut.WriteLine("Verifying...");
     var boogiePrograms = DafnyDriver.Translate(dafnyOptions, dafnyProgram).ToList();
     var baseName = dafnyFile.FilePath;
     var (verified, outcome, moduleStats) = await driver.BoogieAsync(dafnyOptions, baseName, boogiePrograms, dafnyFile.FilePath);

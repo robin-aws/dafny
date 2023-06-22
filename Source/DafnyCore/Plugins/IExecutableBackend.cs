@@ -158,4 +158,7 @@ public abstract class IExecutableBackend {
   /// </summary>
   public abstract bool RunTargetProgram(string dafnyProgramName, string targetProgramText, string callToMain, string pathsFilename,
     ReadOnlyCollection<string> otherFileNames, object compilationResult, TextWriter outputWriter);
+
+  public virtual void ApplyClassWriterAdvice(IEnumerable<ClassWriterAdvice> advices) {
+  }
 }

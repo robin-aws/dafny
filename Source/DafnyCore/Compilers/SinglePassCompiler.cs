@@ -13,6 +13,8 @@ using System.IO;
 using System.Diagnostics.Contracts;
 using JetBrains.Annotations;
 using Microsoft.BaseTypes;
+using Microsoft.Dafny.Plugins;
+using static Microsoft.Dafny.Compilers.CompilerErrors;
 
 
 namespace Microsoft.Dafny.Compilers {
@@ -75,6 +77,8 @@ namespace Microsoft.Dafny.Compilers {
       this.Options = options;
       Reporter = reporter;
       Coverage = new CoverageInstrumenter(this);
+      System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(CompilerErrors).TypeHandle); 
+      ClassWriterFactory = new DefaultFactory(this);
     }
 
     protected static void ReportError(ErrorReporter reporter, IToken tok, string msg, ConcreteSyntaxTree/*?*/ wr, params object[] args) {
@@ -116,27 +120,40 @@ namespace Microsoft.Dafny.Compilers {
     protected abstract ConcreteSyntaxTree CreateStaticMain(IClassWriter wr, string argsParameterName);
     protected abstract ConcreteSyntaxTree CreateModule(string moduleName, bool isDefault, bool isExtern, string/*?*/ libraryName, ConcreteSyntaxTree wr);
     protected abstract string GetHelperModuleName();
-    protected interface IClassWriter {
-      ConcreteSyntaxTree/*?*/ CreateMethod(Method m, List<TypeArgumentInstantiation> typeArgs, bool createBody, bool forBodyInheritance, bool lookasideBody);
-      ConcreteSyntaxTree/*?*/ SynthesizeMethod(Method m, List<TypeArgumentInstantiation> typeArgs, bool createBody, bool forBodyInheritance, bool lookasideBody);
-      ConcreteSyntaxTree/*?*/ CreateFunction(string name, List<TypeArgumentInstantiation> typeArgs, List<Formal> formals, Type resultType, IToken tok, bool isStatic, bool createBody,
-        MemberDecl member, bool forBodyInheritance, bool lookasideBody);
-      ConcreteSyntaxTree/*?*/ CreateGetter(string name, TopLevelDecl enclosingDecl, Type resultType, IToken tok, bool isStatic, bool isConst, bool createBody, MemberDecl/*?*/ member, bool forBodyInheritance);  // returns null iff !createBody
-      ConcreteSyntaxTree/*?*/ CreateGetterSetter(string name, Type resultType, IToken tok, bool createBody, MemberDecl/*?*/ member, out ConcreteSyntaxTree setterWriter, bool forBodyInheritance);  // if createBody, then result and setterWriter are non-null, else both are null
-      void DeclareField(string name, TopLevelDecl enclosingDecl, bool isStatic, bool isConst, Type type, IToken tok, string rhs, Field/*?*/ field);
-      /// <summary>
-      /// InitializeField is called for inherited fields. It is in lieu of calling DeclareField and is called only if
-      /// ClassesRedeclareInheritedFields==false for the compiler.
-      /// </summary>
-      void InitializeField(Field field, Type instantiatedFieldType, TopLevelDeclWithMembers enclosingClass);
-      ConcreteSyntaxTree/*?*/ ErrorWriter();
-      void Finish();
+
+    private class DefaultFactory : IClassWriterFactory {
+      private SinglePassCompiler compiler;
+      public DefaultFactory(SinglePassCompiler compiler) {
+        this.compiler = compiler;
+      }
+
+      public override IClassWriter CreateClass(string moduleName, string name,
+        bool isExtern, string fullPrintName, List<TypeParameter> typeParameters, TopLevelDecl cls, List<Type> superClasses, IToken tok,
+        ConcreteSyntaxTree wr) {
+
+        return compiler.CreateClass(moduleName, name, isExtern, fullPrintName, typeParameters, cls, superClasses, tok, wr);
+      }
+
+      public override IClassWriter CreateTrait(string name, bool isExtern, List<TypeParameter> typeParameters, TopLevelDecl trait, List<Type> superClasses,
+        IToken tok, ConcreteSyntaxTree wr) {
+        return compiler.CreateTrait(name, isExtern, typeParameters, trait, superClasses, tok, wr);
+      }
+
+      public override IClassWriter DeclareNewtype(NewtypeDecl nt, ConcreteSyntaxTree wr) {
+        return compiler.DeclareNewtype(nt, wr);
+      }
+
+      public override IClassWriter DeclareDatatype(DatatypeDecl dt, ConcreteSyntaxTree wr) {
+        return compiler.DeclareDatatype(dt, wr);
+      }
     }
+    public IClassWriterFactory ClassWriterFactory { get; set; }
+
     protected virtual bool IncludeExternMembers { get => false; }
     protected virtual bool SupportsStaticsInGenericClasses => true;
     protected virtual bool TraitRepeatsInheritedDeclarations => false;
     protected IClassWriter CreateClass(string moduleName, string name, TopLevelDecl cls, ConcreteSyntaxTree wr) {
-      return CreateClass(moduleName, name, false, null, cls.TypeArgs, cls, null, null, wr);
+      return ClassWriterFactory.CreateClass(moduleName, name, false, null, cls.TypeArgs, cls, null, null, wr);
     }
 
     /// <summary>
@@ -1427,7 +1444,34 @@ namespace Microsoft.Dafny.Compilers {
             // writing the trait
             var w = CreateTrait(trait.GetCompileName(Options), trait.IsExtern(Options, out _, out _), trait.TypeArgs, trait, trait.ParentTypeInformation.UniqueParentTraits(), trait.tok, wr);
             CompileClassMembers(program, trait, w);
-          } else if (d is ClassDecl cl) {
+
+          } else if (d is DefaultClassDecl defaultClassDecl) {
+            Contract.Assert(defaultClassDecl.InheritedMembers.Count == 0);
+            Predicate<MemberDecl> compilationMaterial = x =>
+              !x.IsGhost && (Options.DisallowExterns || !Attributes.Contains(x.Attributes, "extern"));
+            var include = defaultClassDecl.Members.Exists(compilationMaterial);
+            var classIsExtern = false;
+            if (include) {
+              classIsExtern =
+                (!Options.DisallowExterns && Attributes.Contains(defaultClassDecl.Attributes, "extern")) ||
+                Attributes.Contains(defaultClassDecl.EnclosingModuleDefinition.Attributes, "extern");
+              if (classIsExtern && defaultClassDecl.Members.TrueForAll(member => member.IsGhost || Attributes.Contains(member.Attributes, "extern"))) {
+                include = false;
+              }
+            }
+            if (include) {
+              var cw = ClassWriterFactory.CreateClass(IdProtect(d.EnclosingModuleDefinition.GetCompileName(Options)), IdName(defaultClassDecl),
+                classIsExtern, defaultClassDecl.FullName,
+                defaultClassDecl.TypeArgs, defaultClassDecl, defaultClassDecl.ParentTypeInformation.UniqueParentTraits(), defaultClassDecl.tok, wr);
+              CompileClassMembers(program, defaultClassDecl, cw);
+              cw.Finish();
+            } else {
+              // still check that given members satisfy compilation rules
+              var abyss = new NullClassWriter();
+              CompileClassMembers(program, defaultClassDecl, abyss);
+            }
+
+          } else if (d is ClassLikeDecl cl) {
             var include = true;
             if (cl.IsDefaultClass) {
               Predicate<MemberDecl> compilationMaterial = x =>
@@ -1449,7 +1493,7 @@ namespace Microsoft.Dafny.Compilers {
               Error(cl.tok, "since fields are initialized arbitrarily, constructor-less classes are forbidden by the --enforce-determinism option", wr);
             }
             if (include) {
-              var cw = CreateClass(IdProtect(d.EnclosingModuleDefinition.GetCompileName(Options)), IdName(cl), classIsExtern, cl.FullName,
+              var cw = ClassWriterFactory.CreateClass(IdProtect(d.EnclosingModuleDefinition.GetCompileName(Options)), IdName(cl), classIsExtern, cl.FullName,
                 cl.TypeArgs, cl, cl.ParentTypeInformation.UniqueParentTraits(), cl.tok, wr);
               CompileClassMembers(program, cl, cw);
               cw.Finish();
@@ -1483,8 +1527,13 @@ namespace Microsoft.Dafny.Compilers {
       public NullClassWriter() {
         block = abyss.NewBlock("");
       }
+      
+      public ConcreteSyntaxTree ClassHeaderWriter() {
+        return null;
+      }
 
-      public ConcreteSyntaxTree/*?*/ CreateMethod(Method m, List<TypeArgumentInstantiation> typeArgs, bool createBody, bool forBodyInheritance, bool lookasideBody) {
+      public ConcreteSyntaxTree/*?*/ CreateMethod(Method m, List<TypeArgumentInstantiation> typeArgs, bool createBody, bool forBodyInheritance, bool lookasideBody, out ConcreteSyntaxTree headerWriter) {
+        headerWriter = null;
         return createBody ? block : null;
       }
 
@@ -1893,7 +1942,7 @@ namespace Microsoft.Dafny.Compilers {
           } else if (member is Method method) {
             if (!Attributes.Contains(method.Attributes, "extern")) {
               Contract.Assert(method.Body != null);
-              var w = classWriter.CreateMethod(method, CombineAllTypeArguments(member), true, true, false);
+              var w = classWriter.CreateMethod(method, CombineAllTypeArguments(member), true, true, false, out var headerWriter);
               EmitCallToInheritedMethod(method, w);
             }
           } else {
@@ -2044,7 +2093,7 @@ namespace Microsoft.Dafny.Compilers {
             }
           } else if (c is TraitDecl && !m.IsStatic) {
             if (m.OverriddenMember == null) {
-              var w = classWriter.CreateMethod(m, CombineAllTypeArguments(m), false, false, false);
+              var w = classWriter.CreateMethod(m, CombineAllTypeArguments(m), false, false, false, out var headerWriter);
               Contract.Assert(w == null);  // since we requested no body
             } else if (TraitRepeatsInheritedDeclarations) {
               RedeclareInheritedMember(m, classWriter);
@@ -2092,7 +2141,7 @@ namespace Microsoft.Dafny.Compilers {
         Contract.Assert(wBody == null); // since the previous line said not to create a body
       } else if (member is Method) {
         var method = ((Method)member).Original;
-        var wBody = classWriter.CreateMethod(method, CombineAllTypeArguments(method), false, false, false);
+        var wBody = classWriter.CreateMethod(method, CombineAllTypeArguments(method), false, false, false, out var headerWriter);
         Contract.Assert(wBody == null); // since the previous line said not to create a body
       } else {
         Contract.Assert(false); // unexpected member
@@ -2451,7 +2500,7 @@ namespace Microsoft.Dafny.Compilers {
       Contract.Requires(m != null);
       Contract.Requires(m.Body != null || (IncludeExternMembers && Attributes.Contains(m.Attributes, "extern")));
 
-      var w = cw.CreateMethod(m, CombineAllTypeArguments(m), !m.IsExtern(Options, out _, out _), false, lookasideBody);
+      var w = cw.CreateMethod(m, CombineAllTypeArguments(m), !m.IsExtern(Options, out _, out _), false, lookasideBody, out var headerWriter);
       if (w != null) {
         if (m.IsTailRecursive) {
           w = EmitTailCallStructure(m, w);

@@ -28,7 +28,7 @@ namespace Microsoft.Dafny {
 
   public class DafnyFile {
     public bool UseStdin { get; private set; }
-    public string FilePath => Uri.LocalPath;
+    public string FilePath { get; private set; }
     public string CanonicalPath { get; private set; }
     public string BaseName { get; private set; }
     public bool IsPreverified { get; set; }
@@ -84,7 +84,7 @@ namespace Microsoft.Dafny {
       // So we will just use the absolute path, lowercased for all file systems.
       // cf. IncludeComparer.CompareTo
       CanonicalPath = !useStdin ? Canonicalize(filePath).LocalPath : "<stdin>";
-      filePath = CanonicalPath;
+      FilePath = CanonicalPath;
 
       if (extension == ".dfy" || extension == ".dfyi") {
         IsPreverified = false;

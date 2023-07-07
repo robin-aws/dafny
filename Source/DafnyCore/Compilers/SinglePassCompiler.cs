@@ -14,7 +14,6 @@ using System.Diagnostics.Contracts;
 using JetBrains.Annotations;
 using Microsoft.BaseTypes;
 using Microsoft.Dafny.Plugins;
-using static Microsoft.Dafny.Compilers.CompilerErrors;
 
 
 namespace Microsoft.Dafny.Compilers {
@@ -77,7 +76,6 @@ namespace Microsoft.Dafny.Compilers {
       this.Options = options;
       Reporter = reporter;
       Coverage = new CoverageInstrumenter(this);
-      System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(CompilerErrors).TypeHandle); 
       ClassWriterFactory = new DefaultFactory(this);
     }
 
@@ -1445,33 +1443,8 @@ namespace Microsoft.Dafny.Compilers {
             var w = CreateTrait(trait.GetCompileName(Options), trait.IsExtern(Options, out _, out _), trait.TypeArgs, trait, trait.ParentTypeInformation.UniqueParentTraits(), trait.tok, wr);
             CompileClassMembers(program, trait, w);
 
-          } else if (d is DefaultClassDecl defaultClassDecl) {
-            Contract.Assert(defaultClassDecl.InheritedMembers.Count == 0);
-            Predicate<MemberDecl> compilationMaterial = x =>
-              !x.IsGhost && (Options.DisallowExterns || !Attributes.Contains(x.Attributes, "extern"));
-            var include = defaultClassDecl.Members.Exists(compilationMaterial);
-            var classIsExtern = false;
-            if (include) {
-              classIsExtern =
-                (!Options.DisallowExterns && Attributes.Contains(defaultClassDecl.Attributes, "extern")) ||
-                Attributes.Contains(defaultClassDecl.EnclosingModuleDefinition.Attributes, "extern");
-              if (classIsExtern && defaultClassDecl.Members.TrueForAll(member => member.IsGhost || Attributes.Contains(member.Attributes, "extern"))) {
-                include = false;
-              }
-            }
-            if (include) {
-              var cw = ClassWriterFactory.CreateClass(IdProtect(d.EnclosingModuleDefinition.GetCompileName(Options)), IdName(defaultClassDecl),
-                classIsExtern, defaultClassDecl.FullName,
-                defaultClassDecl.TypeArgs, defaultClassDecl, defaultClassDecl.ParentTypeInformation.UniqueParentTraits(), defaultClassDecl.tok, wr);
-              CompileClassMembers(program, defaultClassDecl, cw);
-              cw.Finish();
-            } else {
-              // still check that given members satisfy compilation rules
-              var abyss = new NullClassWriter();
-              CompileClassMembers(program, defaultClassDecl, abyss);
-            }
-
-          } else if (d is ClassLikeDecl cl) {
+          } else if (d is ClassDecl cl) {
+            
             var include = true;
             if (cl.IsDefaultClass) {
               Predicate<MemberDecl> compilationMaterial = x =>

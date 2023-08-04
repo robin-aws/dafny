@@ -2001,6 +2001,7 @@ namespace Microsoft.Dafny {
           // --- here comes the constructor
           var init = new Constructor(iter.tok, "_ctor", new List<TypeParameter>(), iter.Ins,
             new List<AttributedExpression>(),
+            new List<FrameExpression>(),
             new Specification<FrameExpression>(new List<FrameExpression>(), null),
             new List<AttributedExpression>(),
             new Specification<Expression>(new List<Expression>(), null),
@@ -2017,6 +2018,7 @@ namespace Microsoft.Dafny {
           var moveNext = new Method(iter.tok, "MoveNext", false, false, new List<TypeParameter>(),
             new List<Formal>(), new List<Formal>() { new Formal(iter.tok, "more", Type.Bool, false, false, null) },
             new List<AttributedExpression>(),
+            new List<FrameExpression>(),
             new Specification<FrameExpression>(new List<FrameExpression>(), null),
             new List<AttributedExpression>(),
             new Specification<Expression>(new List<Expression>(), null),
@@ -2268,7 +2270,7 @@ namespace Microsoft.Dafny {
                 : com.Ens.ConvertAll(cloner.CloneAttributedExpr);
               com.PrefixLemma = new PrefixLemma(com.tok, extraName, com.HasStaticKeyword,
                 com.TypeArgs.ConvertAll(cloner.CloneTypeParam), k, formals, com.Outs.ConvertAll(cloner.CloneFormal),
-                req, cloner.CloneSpecFrameExpr(com.Mod), ens,
+                req, com.Reads.ConvertAll(cloner.CloneFrameExpr), cloner.CloneSpecFrameExpr(com.Mod), ens,
                 new Specification<Expression>(decr, null),
                 null, // Note, the body for the prefix method will be created once the call graph has been computed and the SCC for the greatest lemma is known
                 cloner.CloneAttributes(com.Attributes), com);
@@ -2302,7 +2304,7 @@ namespace Microsoft.Dafny {
       var post = new AttributedExpression(new BinaryExpr(tok, BinaryExpr.Opcode.Eq, r, fn));
       var method = new Method(tok, f.Name, f.HasStaticKeyword, false, f.TypeArgs,
         f.Formals, new List<Formal>() { resultVar },
-        f.Req, new Specification<FrameExpression>(new List<FrameExpression>(), null), new List<AttributedExpression>() { post }, f.Decreases,
+        f.Req, f.Reads, new Specification<FrameExpression>(new List<FrameExpression>(), null), new List<AttributedExpression>() { post }, f.Decreases,
         f.ByMethodBody, f.Attributes, null, true);
       Contract.Assert(f.ByMethodDecl == null);
       method.InheritVisibility(f);
@@ -10123,6 +10125,15 @@ namespace Microsoft.Dafny {
           ResolveExpression(e.E, new ResolveOpts(m, m is TwoStateLemma));
           Contract.Assert(e.E.Type != null);  // follows from postcondition of ResolveExpression
           ConstrainTypeExprBool(e.E, "Precondition must be a boolean (got {0})");
+        }
+
+        // The default reads clause for methods is * rather than {}.
+        // TODO-RS: Not sure if this is the best way to set the default
+        if (m.Reads.Count == 0) {
+          m.Reads.Add(new FrameExpression(m.tok, new WildcardExpr(m.tok), null));
+        }
+        foreach (FrameExpression fe in m.Reads) {
+          ResolveFrameExpression(fe, FrameExpressionUse.Reads, m);
         }
 
         ResolveAttributes(m.Mod.Attributes, null, new ResolveOpts(m, false));

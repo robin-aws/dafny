@@ -781,7 +781,7 @@ namespace Microsoft.Dafny {
 
     private void BplIfIf(Bpl.IToken tk, bool yes, Bpl.Expr guard, BoogieStmtListBuilder builder, Action<BoogieStmtListBuilder> k) {
       if (yes) {
-        var newBuilder = new BoogieStmtListBuilder(builder.tran, options);
+        var newBuilder = builder.Fork();
         k(newBuilder);
         builder.Add(new Bpl.IfCmd(tk, guard, newBuilder.Collect(tk), null, null));
       } else {

@@ -1,16 +1,25 @@
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Boogie;
 
 namespace Microsoft.Dafny {
   internal class BoogieStmtListBuilder {
     public DafnyOptions Options { get; }
+    private StmtListBuilder initializationAreaBuilder;
     public StmtListBuilder builder;
     public Translator tran;
 
     public BoogieStmtListBuilder(Translator tran, DafnyOptions options) {
+      initializationAreaBuilder = new Boogie.StmtListBuilder();
       builder = new Boogie.StmtListBuilder();
       this.tran = tran;
       this.Options = options;
+    }
+    
+    public BoogieStmtListBuilder Fork() {
+      var result = new BoogieStmtListBuilder(tran, Options);
+      result.initializationAreaBuilder = initializationAreaBuilder;
+      return result;
     }
 
     public void Add(Cmd cmd) {
@@ -41,8 +50,18 @@ namespace Microsoft.Dafny {
     public void AddLabelCmd(string label) { builder.AddLabelCmd(label); }
     public void AddLocalVariable(string name) { builder.AddLocalVariable(name); }
 
+    public void AddInitialization(Cmd cmd) {
+      initializationAreaBuilder.Add(cmd);
+    }
+    
+    // public StmtList Collect(Boogie.IToken tok) {
+    //   return builder.Collect(tok);
+    // }
+
     public StmtList Collect(Boogie.IToken tok) {
-      return builder.Collect(tok);
+      var s0 = initializationAreaBuilder.Collect(tok);
+      var s1 = builder.Collect(tok);
+      return new StmtList(new List<BigBlock>(s0.BigBlocks.Concat(s1.BigBlocks)), tok);
     }
   }
 }

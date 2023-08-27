@@ -536,7 +536,6 @@ namespace Microsoft.Dafny {
       List<Variable> outParams = Boogie.Formal.StripWhereClauses(proc.OutParams);
 
       var builder = new BoogieStmtListBuilder(this, options);
-      var builderInitializationArea = new BoogieStmtListBuilder(this, options);
       builder.Add(new CommentCmd("AddMethodImpl: " + m + ", " + proc));
       var etran = new ExpressionTranslator(this, predef, m.tok);
       // Only do reads checks for methods, not lemmas
@@ -674,7 +673,7 @@ namespace Microsoft.Dafny {
 
         Contract.Assert(definiteAssignmentTrackers.Count == 0);
       } else {
-        var readsCheckDelayer = new ReadsCheckDelayer(etran, null, localVariables, builderInitializationArea, builder);
+        var readsCheckDelayer = new ReadsCheckDelayer(etran, null, localVariables, builder);
 
         // check well-formedness of any default-value expressions (before assuming preconditions)
         readsCheckDelayer.WithDelayedReadsChecks(true, wfo => {
@@ -755,9 +754,7 @@ namespace Microsoft.Dafny {
           CheckWellformedAndAssume(p.E, new WFOptions(), localVariables, builder, etran);
         }
 
-        var s0 = builderInitializationArea.Collect(m.tok);
-        var s1 = builder.Collect(m.tok);
-        stmts = new StmtList(new List<BigBlock>(s0.BigBlocks.Concat(s1.BigBlocks)), m.tok);
+        stmts = builder.Collect(m.tok);
       }
 
       if (EmitImplementation(m.Attributes)) {

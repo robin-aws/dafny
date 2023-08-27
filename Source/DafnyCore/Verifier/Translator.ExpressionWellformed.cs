@@ -108,9 +108,8 @@ namespace Microsoft.Dafny {
         }
       }
 
-      public void ProcessSavedReadsChecks(List<Variable> locals, BoogieStmtListBuilder builderInitializationArea, BoogieStmtListBuilder builder) {
+      public void ProcessSavedReadsChecks(List<Variable> locals, BoogieStmtListBuilder builder) {
         Contract.Requires(locals != null);
-        Contract.Requires(builderInitializationArea != null);
         Contract.Requires(builder != null);
         Contract.Requires(Locals != null && Asserts != null);  // ProcessSavedReadsChecks should be called only if the constructor was called with saveReadsChecks
 
@@ -118,7 +117,7 @@ namespace Microsoft.Dafny {
         locals.AddRange(Locals);
         // b$reads_guards#0 := true   ...
         foreach (var cmd in AssignLocals) {
-          builderInitializationArea.Add(cmd);
+          builder.AddInitialization(cmd);
         }
         // assert b$reads_guards#0;  ...
         foreach (var a in Asserts) {
@@ -228,14 +227,14 @@ namespace Microsoft.Dafny {
     // Also encapsulates the handling for the optimization to not declare a $_ReadsFrame field if the reads clause is *:
     // if etran.readsFrame is null, the block is called with a WFOption with DoReadsChecks set to false instead.
     private record ReadsCheckDelayer(ExpressionTranslator etran, Function selfCallsAllowance,
-      List<Variable> localVariables, BoogieStmtListBuilder builderInitializationArea, BoogieStmtListBuilder builder) {
+      List<Variable> localVariables, BoogieStmtListBuilder builder) {
 
       public void WithDelayedReadsChecks(bool doOnlyCoarseGrainedTerminationChecks, Action<WFOptions> action) {
         var doReadsChecks = etran.readsFrame != null;
         var options = new WFOptions(selfCallsAllowance, doReadsChecks, doReadsChecks, doOnlyCoarseGrainedTerminationChecks);
         action(options);
         if (doReadsChecks) {
-          options.ProcessSavedReadsChecks(localVariables, builderInitializationArea, builder);
+          options.ProcessSavedReadsChecks(localVariables, builder);
         }
       }
     }
@@ -1074,7 +1073,7 @@ namespace Microsoft.Dafny {
                   DefineFrame(e.tok, comprehensionEtran.ReadsFrame(e.tok), reads, newBuilder, locals, frameName, comprehensionEtran);
 
                   // Check frame WF and that it read covers itself
-                  var delayer = new ReadsCheckDelayer(comprehensionEtran, wfOptions.SelfCallsAllowance, locals, builder, newBuilder);
+                  var delayer = new ReadsCheckDelayer(comprehensionEtran, wfOptions.SelfCallsAllowance, locals, newBuilder);
                   delayer.WithDelayedReadsChecks(false, wfo => {
                     CheckFrameWellFormed(wfo, reads, locals, newBuilder, comprehensionEtran);
                   });

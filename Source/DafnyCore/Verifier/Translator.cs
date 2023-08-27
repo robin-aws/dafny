@@ -4375,7 +4375,6 @@ namespace Microsoft.Dafny {
       var implOutParams = Bpl.Formal.StripWhereClauses(outParams);
       var locals = new List<Variable>();
       var builder = new BoogieStmtListBuilder(this, options);
-      var builderInitializationArea = new BoogieStmtListBuilder(this, options);
       builder.Add(new CommentCmd("AddWellformednessCheck for function " + f));
       if (f is TwoStateFunction) {
         // $Heap := current$Heap;
@@ -4394,7 +4393,7 @@ namespace Microsoft.Dafny {
         CheckFrameEmpty(f.tok, etran, etran.ReadsFrame(f.tok), builder, desc, null);
       }
 
-      var delayer = new ReadsCheckDelayer(etran, null, locals, builderInitializationArea, builder);
+      var delayer = new ReadsCheckDelayer(etran, null, locals, builder);
 
       // Check well-formedness of any default-value expressions (before assuming preconditions).
       delayer.WithDelayedReadsChecks(true, wfo => {
@@ -4449,7 +4448,7 @@ namespace Microsoft.Dafny {
       //     // fall through to check the postconditions themselves
       //   }
       // Here go the postconditions (termination checks included, but no reads checks)
-      BoogieStmtListBuilder postCheckBuilder = new BoogieStmtListBuilder(this, options);
+      BoogieStmtListBuilder postCheckBuilder = builder.Fork();
       // Assume the type returned by the call itself respects its type (this matters if the type is "nat", for example)
       {
         var args = new List<Bpl.Expr>();
@@ -4489,7 +4488,7 @@ namespace Microsoft.Dafny {
         CheckWellformedAndAssume(p.E, new WFOptions(f, false), locals, postCheckBuilder, etran);
       }
       // Here goes the body (and include both termination checks and reads checks)
-      BoogieStmtListBuilder bodyCheckBuilder = new BoogieStmtListBuilder(this, options);
+      BoogieStmtListBuilder bodyCheckBuilder = builder.Fork();
       if (f.Body == null || !RevealedInScope(f)) {
         // don't fall through to postcondition checks
         bodyCheckBuilder.Add(TrAssumeCmd(f.tok, Bpl.Expr.False));
@@ -4517,7 +4516,7 @@ namespace Microsoft.Dafny {
         }
         Bpl.Expr funcAppl = new Bpl.NAryExpr(f.tok, funcID, args);
 
-        var bodyCheckDelayer = new ReadsCheckDelayer(etran, null, locals, builderInitializationArea, bodyCheckBuilder);
+        var bodyCheckDelayer = new ReadsCheckDelayer(etran, null, locals, bodyCheckBuilder);
         bodyCheckDelayer.WithDelayedReadsChecks(false, wfo => {
           CheckWellformedWithResult(f.Body, wfo, funcAppl, f.ResultType, locals, bodyCheckBuilder, etran);
           if (f.Result != null) {
@@ -4535,9 +4534,7 @@ namespace Microsoft.Dafny {
       postCheckBuilder.Add(TrAssumeCmd(f.tok, Bpl.Expr.False));
       builder.Add(new Bpl.IfCmd(f.tok, null, postCheckBuilder.Collect(f.tok), null, bodyCheckBuilder.Collect(f.tok)));
 
-      var s0 = builderInitializationArea.Collect(f.tok);
-      var s1 = builder.Collect(f.tok);
-      var implBody = new StmtList(new List<BigBlock>(s0.BigBlocks.Concat(s1.BigBlocks)), f.tok);
+      var implBody = builder.Collect(f.tok);
 
       if (EmitImplementation(f.Attributes)) {
         // emit the impl only when there are proof obligations.
@@ -4629,8 +4626,7 @@ namespace Microsoft.Dafny {
 
       // check well-formedness of the constraint (including termination, and delayed reads checks)
       var constraintCheckBuilder = new BoogieStmtListBuilder(this, options);
-      var builderInitializationArea = new BoogieStmtListBuilder(this, options);
-      var delayer = new ReadsCheckDelayer(etran, null, locals, builderInitializationArea, constraintCheckBuilder);
+      var delayer = new ReadsCheckDelayer(etran, null, locals, constraintCheckBuilder);
       delayer.WithDelayedReadsChecks(false, wfo => {
         CheckWellformedAndAssume(decl.Constraint, wfo, locals, constraintCheckBuilder, etran);
       });
@@ -4687,9 +4683,7 @@ namespace Microsoft.Dafny {
 
       builder.Add(new Bpl.IfCmd(decl.tok, null, constraintCheckBuilder.Collect(decl.tok), null, witnessCheckBuilder.Collect(decl.tok)));
 
-      var s0 = builderInitializationArea.Collect(decl.tok);
-      var s1 = builder.Collect(decl.tok);
-      var implBody = new StmtList(new List<BigBlock>(s0.BigBlocks.Concat(s1.BigBlocks)), decl.tok);
+      var implBody = builder.Collect(decl.tok);
 
       if (EmitImplementation(decl.Attributes)) {
         // emit the impl only when there are proof obligations.
@@ -5408,7 +5402,10 @@ namespace Microsoft.Dafny {
       if (lValueContext) {
         options = options.WithLValueContext(true);
       }
-      CheckWellformed(expr, options, locals, builder, etran);
+      var readsCheckDelayer = new ReadsCheckDelayer(etran, null, locals, builder);
+      readsCheckDelayer.WithDelayedReadsChecks(false, wfo => {
+        CheckWellformed(expr, wfo, locals, builder, etran);
+      });
       builder.Add(TrAssumeCmd(expr.tok, CanCallAssumption(expr, etran)));
     }
 

@@ -535,8 +535,8 @@ namespace Microsoft.Dafny {
       List<Variable> inParams = Boogie.Formal.StripWhereClauses(proc.InParams);
       List<Variable> outParams = Boogie.Formal.StripWhereClauses(proc.OutParams);
 
+      var initializationAreaBuilder = new BoogieStmtListBuilder(this, options);
       var builder = new BoogieStmtListBuilder(this, options);
-      var builderInitializationArea = new BoogieStmtListBuilder(this, options);
       builder.Add(new CommentCmd("AddMethodImpl: " + m + ", " + proc));
       var etran = new ExpressionTranslator(this, predef, m.tok);
       // Only do reads checks for methods, not lemmas
@@ -651,7 +651,7 @@ namespace Microsoft.Dafny {
           // All done, so put the two pieces together
           builder.Add(new Bpl.IfCmd(m.tok, null, definedness.Collect(m.tok), null, exporter.Collect(m.tok)));
 #else
-          TrForallStmtCall(m.tok, parBoundVars, parBounds, parRange, decrCheck, null, recursiveCall, null, builder, localVariables, etran);
+          TrForallStmtCall(m.tok, parBoundVars, parBounds, parRange, decrCheck, null, recursiveCall, null, initializationAreaBuilder, builder, localVariables, etran);
 #endif
         }
         // translate the body of the method
@@ -663,7 +663,7 @@ namespace Microsoft.Dafny {
         Contract.Assert(definiteAssignmentTrackers.Count == 0);
         m.Outs.ForEach(p => AddExistingDefiniteAssignmentTracker(p, m.IsGhost));
         // translate the body
-        TrStmt(m.Body, builder, localVariables, etran);
+        TrStmt(m.Body, initializationAreaBuilder, builder, localVariables, etran);
         m.Outs.ForEach(p => CheckDefiniteAssignmentReturn(m.Body.RangeToken.EndToken, p, builder));
         if (m is { FunctionFromWhichThisIsByMethodDecl: { ByMethodTok: { } } fun }) {
           AssumeCanCallForByMethodDecl(m, builder);
@@ -674,13 +674,13 @@ namespace Microsoft.Dafny {
 
         Contract.Assert(definiteAssignmentTrackers.Count == 0);
       } else {
-        var readsCheckDelayer = new ReadsCheckDelayer(etran, null, localVariables, builderInitializationArea, builder);
+        var readsCheckDelayer = new ReadsCheckDelayer(etran, null, localVariables, initializationAreaBuilder, builder);
 
         // check well-formedness of any default-value expressions (before assuming preconditions)
         readsCheckDelayer.WithDelayedReadsChecks(true, wfo => {
           foreach (var formal in m.Ins.Where(formal => formal.DefaultValue != null)) {
             var e = formal.DefaultValue;
-            CheckWellformed(e, wfo, localVariables, builder, etran);
+            CheckWellformed(e, wfo, localVariables, initializationAreaBuilder, builder, etran);
             builder.Add(new Boogie.AssumeCmd(e.tok, CanCallAssumption(e, etran)));
             CheckSubrange(e.tok, etran.TrExpr(e), e.Type, formal.Type, builder);
 
@@ -697,13 +697,13 @@ namespace Microsoft.Dafny {
         // check well-formedness of the preconditions, and then assume each one of them
         readsCheckDelayer.WithDelayedReadsChecks(false, wfo => {
           foreach (AttributedExpression p in m.Req) {
-            CheckWellformedAndAssume(p.E, wfo, localVariables, builder, etran);
+            CheckWellformedAndAssume(p.E, wfo, localVariables, initializationAreaBuilder, builder, etran);
           }
         });
 
         // check well-formedness of the reads clauses
         readsCheckDelayer.WithDelayedReadsChecks(false, wfo => {
-          CheckFrameWellFormed(wfo, m.Reads, localVariables, builder, etran);
+          CheckFrameWellFormed(wfo, m.Reads, localVariables, initializationAreaBuilder, builder, etran);
           if (etran.readsFrame != null && Attributes.Contains(m.Attributes, "concurrent")) {
             var desc = new PODesc.ConcurrentFrameEmpty("reads clause");
             CheckFrameEmpty(m.tok, etran, etran.ReadsFrame(m.tok), builder, desc, null);
@@ -712,7 +712,7 @@ namespace Microsoft.Dafny {
 
         // check well-formedness of the modifies clauses
         readsCheckDelayer.WithDelayedReadsChecks(false, wfo => {
-          CheckFrameWellFormed(wfo, m.Mod.Expressions, localVariables, builder, etran);
+          CheckFrameWellFormed(wfo, m.Mod.Expressions, localVariables, initializationAreaBuilder, builder, etran);
           if (Attributes.Contains(m.Attributes, "concurrent")) {
             var desc = new PODesc.ConcurrentFrameEmpty("modifies clause");
             CheckFrameEmpty(m.tok, etran, etran.ModifiesFrame(m.tok), builder, desc, null);
@@ -721,7 +721,7 @@ namespace Microsoft.Dafny {
 
         // check well-formedness of the decreases clauses
         foreach (Expression p in m.Decreases.Expressions) {
-          CheckWellformed(p, new WFOptions(), localVariables, builder, etran);
+          CheckWellformed(p, new WFOptions(), localVariables, initializationAreaBuilder, builder, etran);
         }
 
         if (!(m is TwoStateLemma)) {
@@ -752,10 +752,10 @@ namespace Microsoft.Dafny {
 
         // check wellformedness of postconditions
         foreach (AttributedExpression p in m.Ens) {
-          CheckWellformedAndAssume(p.E, new WFOptions(), localVariables, builder, etran);
+          CheckWellformedAndAssume(p.E, new WFOptions(), localVariables, initializationAreaBuilder, builder, etran);
         }
 
-        var s0 = builderInitializationArea.Collect(m.tok);
+        var s0 = initializationAreaBuilder.Collect(m.tok);
         var s1 = builder.Collect(m.tok);
         stmts = new StmtList(new List<BigBlock>(s0.BigBlocks.Concat(s1.BigBlocks)), m.tok);
       }

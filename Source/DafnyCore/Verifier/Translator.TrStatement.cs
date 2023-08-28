@@ -10,7 +10,7 @@ using PODesc = Microsoft.Dafny.ProofObligationDescription;
 
 namespace Microsoft.Dafny {
   public partial class Translator {
-    private void TrStmt(Statement stmt, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
+    private void TrStmt(Statement stmt, BoogieStmtListBuilder initializationAreaBuilder, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
       Contract.Requires(stmt != null);
       Contract.Requires(builder != null);
       Contract.Requires(locals != null);
@@ -21,13 +21,13 @@ namespace Microsoft.Dafny {
       stmtContext = StmtType.NONE;
       adjustFuelForExists = true;  // fuel for exists might need to be adjusted based on whether it's in an assert or assume stmt.
       if (stmt is PredicateStmt predicateStmt) {
-        TrPredicateStmt(predicateStmt, builder, locals, etran);
+        TrPredicateStmt(predicateStmt, initializationAreaBuilder, builder, locals, etran);
 
       } else if (stmt is PrintStmt) {
         AddComment(builder, stmt, "print statement");
         PrintStmt s = (PrintStmt)stmt;
         foreach (var arg in s.Args) {
-          TrStmt_CheckWellformed(arg, builder, locals, etran, false);
+          TrStmt_CheckWellformed(arg, initializationAreaBuilder, builder, locals, etran, false);
         }
 
       } else if (stmt is RevealStmt) {
@@ -37,7 +37,7 @@ namespace Microsoft.Dafny {
           Contract.Assert(la.E != null);  // this should have been filled in by now
           builder.Add(new Bpl.AssumeCmd(s.Tok, la.E));
         }
-        TrStmtList(s.ResolvedStatements, builder, locals, etran);
+        TrStmtList(s.ResolvedStatements, initializationAreaBuilder, builder, locals, etran);
 
       } else if (stmt is BreakStmt) {
         var s = (BreakStmt)stmt;
@@ -52,7 +52,7 @@ namespace Microsoft.Dafny {
           builder.Add(Bpl.Cmd.SimpleAssign(s.Tok, new Bpl.IdentifierExpr(s.Tok, "$_reverifyPost", Bpl.Type.Bool), Bpl.Expr.True));
         }
         if (s.HiddenUpdate != null) {
-          TrStmt(s.HiddenUpdate, builder, locals, etran);
+          TrStmt(s.HiddenUpdate, initializationAreaBuilder, builder, locals, etran);
         }
         if (codeContext is IMethodCodeContext) {
           var method = (IMethodCodeContext)codeContext;
@@ -71,7 +71,7 @@ namespace Microsoft.Dafny {
         var iter = (IteratorDecl)codeContext;
         // if the yield statement has arguments, do them first
         if (s.HiddenUpdate != null) {
-          TrStmt(s.HiddenUpdate, builder, locals, etran);
+          TrStmt(s.HiddenUpdate, initializationAreaBuilder, builder, locals, etran);
         }
         // this.ys := this.ys + [this.y];
         var th = new ThisExpr(iter);
@@ -164,13 +164,13 @@ namespace Microsoft.Dafny {
             havocRHSs.Add(new HavocRhs(lhs.tok));  // note, a HavocRhs is constructed as already resolved
           }
         }
-        ProcessLhss(havocLHSs, false, true, builder, locals, etran, out var lhsBuilder, out var bLhss, out _, out _, out _);
-        ProcessRhss(lhsBuilder, bLhss, havocLHSs, havocRHSs, builder, locals, etran);
+        ProcessLhss(havocLHSs, false, true, initializationAreaBuilder, builder, locals, etran, out var lhsBuilder, out var bLhss, out _, out _, out _);
+        ProcessRhss(lhsBuilder, bLhss, havocLHSs, havocRHSs, initializationAreaBuilder, builder, locals, etran);
 
         // Here comes the well-formedness check
         var wellFormednessBuilder = new BoogieStmtListBuilder(this, options);
         var rhs = Substitute(s.Expr, null, substMap);
-        TrStmt_CheckWellformed(rhs, wellFormednessBuilder, locals, etran, false);
+        TrStmt_CheckWellformed(rhs, initializationAreaBuilder, wellFormednessBuilder, locals, etran, false);
         var ifCmd = new Bpl.IfCmd(s.Tok, typeAntecedent, wellFormednessBuilder.Collect(s.Tok), null, null);
         builder.Add(ifCmd);
 
@@ -214,7 +214,7 @@ namespace Microsoft.Dafny {
         // an array-range update.  Handle the multi-assignment here and handle the others as for .ResolvedStatements.
         var resolved = s.ResolvedStatements;
         if (resolved.Count == 1) {
-          TrStmt(resolved[0], builder, locals, etran);
+          TrStmt(resolved[0], initializationAreaBuilder, builder, locals, etran);
         } else {
           AddComment(builder, s, "update statement");
           var assignStmts = resolved.Cast<AssignStmt>().ToList();
@@ -224,12 +224,12 @@ namespace Microsoft.Dafny {
           // phase operation. Thus rhssCanAffectPreviouslyKnownExpressions is just true.
           Contract.Assert(1 < lhss.Count);
 
-          ProcessLhss(lhss, true, false, builder, locals, etran, out var lhsBuilder, out var bLhss, out var lhsObjs, out var lhsFields, out var lhsNames);
+          ProcessLhss(lhss, true, false, initializationAreaBuilder, builder, locals, etran, out var lhsBuilder, out var bLhss, out var lhsObjs, out var lhsFields, out var lhsNames);
           // We know that, because the translation saves to a local variable, that the RHS always need to
           // generate a new local, i.e. bLhss is just all nulls.
           Contract.Assert(Contract.ForAll(bLhss, lhs => lhs == null));
           // This generates the assignments, and gives them to us as finalRhss.
-          var finalRhss = ProcessUpdateAssignRhss(lhss, rhss, builder, locals, etran);
+          var finalRhss = ProcessUpdateAssignRhss(lhss, rhss, initializationAreaBuilder, builder, locals, etran);
           // ProcessLhss has laid down framing conditions and the ProcessUpdateAssignRhss will check subranges (nats),
           // but we need to generate the distinctness condition (two LHS are equal only when the RHS is also
           // equal). We need both the LHS and the RHS to do this, which is why we need to do it here.
@@ -244,16 +244,16 @@ namespace Microsoft.Dafny {
       } else if (stmt is AssignOrReturnStmt) {
         AddComment(builder, stmt, "assign-or-return statement (:-)");
         AssignOrReturnStmt s = (AssignOrReturnStmt)stmt;
-        TrStmtList(s.ResolvedStatements, builder, locals, etran);
+        TrStmtList(s.ResolvedStatements, initializationAreaBuilder, builder, locals, etran);
 
       } else if (stmt is AssignStmt) {
         AddComment(builder, stmt, "assignment statement");
         AssignStmt s = (AssignStmt)stmt;
-        TrAssignment(stmt, s.Lhs.Resolved, s.Rhs, builder, locals, etran);
+        TrAssignment(stmt, s.Lhs.Resolved, s.Rhs, initializationAreaBuilder, builder, locals, etran);
 
       } else if (stmt is CallStmt) {
         AddComment(builder, stmt, "call statement");
-        TrCallStmt((CallStmt)stmt, builder, locals, etran, null);
+        TrCallStmt((CallStmt)stmt, initializationAreaBuilder, builder, locals, etran, null);
 
       } else if (stmt is DividedBlockStmt) {
         var s = (DividedBlockStmt)stmt;
@@ -271,7 +271,7 @@ namespace Microsoft.Dafny {
 
         Contract.Assert(!inBodyInitContext);
         inBodyInitContext = true;
-        TrStmtList(s.BodyInit, builder, locals, etran);
+        TrStmtList(s.BodyInit, initializationAreaBuilder, builder, locals, etran);
         Contract.Assert(inBodyInitContext);
         inBodyInitContext = false;
 
@@ -292,26 +292,26 @@ namespace Microsoft.Dafny {
         CommitAllocatedObject(tok, bplThis, null, builder, etran);
 
         AddComment(builder, stmt, "divided block after new;");
-        TrStmtList(s.BodyProper, builder, locals, etran);
+        TrStmtList(s.BodyProper, initializationAreaBuilder, builder, locals, etran);
         RemoveDefiniteAssignmentTrackers(s.Body, prevDefiniteAssignmentTrackerCount);
 
       } else if (stmt is BlockStmt) {
         var s = (BlockStmt)stmt;
         var prevDefiniteAssignmentTrackerCount = definiteAssignmentTrackers.Count;
-        TrStmtList(s.Body, builder, locals, etran);
+        TrStmtList(s.Body, initializationAreaBuilder, builder, locals, etran);
         RemoveDefiniteAssignmentTrackers(s.Body, prevDefiniteAssignmentTrackerCount);
 
       } else if (stmt is IfStmt ifStmt) {
-        TrIfStmt(ifStmt, builder, locals, etran);
+        TrIfStmt(ifStmt, initializationAreaBuilder, builder, locals, etran);
 
       } else if (stmt is AlternativeStmt) {
         AddComment(builder, stmt, "alternative statement");
         var s = (AlternativeStmt)stmt;
         var elseCase = Assert(s.Tok, Bpl.Expr.False, new PODesc.AlternativeIsComplete());
-        TrAlternatives(s.Alternatives, elseCase, null, builder, locals, etran, stmt.IsGhost);
+        TrAlternatives(s.Alternatives, elseCase, null, initializationAreaBuilder, builder, locals, etran, stmt.IsGhost);
 
       } else if (stmt is WhileStmt whileStmt) {
-        TrWhileStmt(whileStmt, builder, locals, etran);
+        TrWhileStmt(whileStmt, initializationAreaBuilder, builder, locals, etran);
 
       } else if (stmt is AlternativeLoopStmt) {
         AddComment(builder, stmt, "alternative loop statement");
@@ -320,19 +320,19 @@ namespace Microsoft.Dafny {
         tru.Type = Type.Bool; // resolve here
         TrLoop(s, tru,
           delegate (BoogieStmtListBuilder bld, ExpressionTranslator e) {
-            TrAlternatives(s.Alternatives, null, new Bpl.BreakCmd(s.Tok, null), bld, locals, e, stmt.IsGhost);
+            TrAlternatives(s.Alternatives, null, new Bpl.BreakCmd(s.Tok, null), initializationAreaBuilder, bld, locals, e, stmt.IsGhost);
             InsertContinueTarget(s, bld);
           },
-          builder, locals, etran);
+          initializationAreaBuilder, builder, locals, etran);
 
       } else if (stmt is ForLoopStmt forLoopStmt) {
-        TrForLoop(forLoopStmt, builder, locals, etran);
+        TrForLoop(forLoopStmt, initializationAreaBuilder, builder, locals, etran);
 
       } else if (stmt is ModifyStmt) {
         AddComment(builder, stmt, "modify statement");
         var s = (ModifyStmt)stmt;
         // check well-formedness of the modifies clauses
-        CheckFrameWellFormed(new WFOptions(), s.Mod.Expressions, locals, builder, etran);
+        CheckFrameWellFormed(new WFOptions(), s.Mod.Expressions, locals, initializationAreaBuilder, builder, etran);
         // check that the modifies is a subset
         CheckFrameSubset(s.Tok, s.Mod.Expressions, null, null, etran, etran.ModifiesFrame(s.Tok), builder, new PODesc.FrameSubset("modify statement", true), null);
         // cause the change of the heap according to the given frame
@@ -357,7 +357,7 @@ namespace Microsoft.Dafny {
           // do the body, but with preModifyHeapVar as the governing frame
           var updatedFrameEtran = etran.WithModifiesFrame(modifyFrameName);
           CurrentIdGenerator.Push();
-          TrStmt(s.Body, builder, locals, updatedFrameEtran);
+          TrStmt(s.Body, initializationAreaBuilder, builder, locals, updatedFrameEtran);
           CurrentIdGenerator.Pop();
         }
         builder.AddCaptureState(stmt);
@@ -371,13 +371,13 @@ namespace Microsoft.Dafny {
           AddComment(builder, stmt, "forall statement (assign)");
           Contract.Assert(s.Ens.Count == 0);
           if (s.BoundVars.Count == 0) {
-            TrStmt(s.Body, builder, locals, etran);
+            TrStmt(s.Body, initializationAreaBuilder, builder, locals, etran);
           } else {
             var s0 = (AssignStmt)s.S0;
             var definedness = new BoogieStmtListBuilder(this, options);
             var updater = new BoogieStmtListBuilder(this, options);
             DefineFuelConstant(stmt.Tok, stmt.Attributes, definedness, etran);
-            TrForallAssign(s, s0, definedness, updater, locals, etran);
+            TrForallAssign(s, s0, initializationAreaBuilder, definedness, updater, locals, etran);
             // All done, so put the two pieces together
             builder.Add(new Bpl.IfCmd(s.Tok, null, definedness.Collect(s.Tok), null, updater.Collect(s.Tok)));
             builder.AddCaptureState(stmt);
@@ -388,16 +388,16 @@ namespace Microsoft.Dafny {
           Contract.Assert(s.Ens.Count == 0);
           if (s.BoundVars.Count == 0) {
             Contract.Assert(LiteralExpr.IsTrue(s.Range));  // follows from the invariant of ForallStmt
-            TrStmt(s.Body, builder, locals, etran);
+            TrStmt(s.Body, initializationAreaBuilder, builder, locals, etran);
           } else {
             var s0 = (CallStmt)s.S0;
             if (Attributes.Contains(s.Attributes, "_trustWellformed")) {
-              TrForallStmtCall(s.Tok, s.BoundVars, s.Bounds, s.Range, null, s.ForallExpressions, s0, null, builder, locals, etran);
+              TrForallStmtCall(s.Tok, s.BoundVars, s.Bounds, s.Range, null, s.ForallExpressions, s0, initializationAreaBuilder, null, builder, locals, etran);
             } else {
               var definedness = new BoogieStmtListBuilder(this, options);
               DefineFuelConstant(stmt.Tok, stmt.Attributes, definedness, etran);
               var exporter = new BoogieStmtListBuilder(this, options);
-              TrForallStmtCall(s.Tok, s.BoundVars, s.Bounds, s.Range, null, s.ForallExpressions, s0, definedness, exporter, locals, etran);
+              TrForallStmtCall(s.Tok, s.BoundVars, s.Bounds, s.Range, null, s.ForallExpressions, s0, initializationAreaBuilder, definedness, exporter, locals, etran);
               // All done, so put the two pieces together
               builder.Add(new Bpl.IfCmd(s.Tok, null, definedness.Collect(s.Tok), null, exporter.Collect(s.Tok)));
             }
@@ -409,7 +409,7 @@ namespace Microsoft.Dafny {
           var definedness = new BoogieStmtListBuilder(this, options);
           var exporter = new BoogieStmtListBuilder(this, options);
           DefineFuelConstant(stmt.Tok, stmt.Attributes, definedness, etran);
-          TrForallProof(s, definedness, exporter, locals, etran);
+          TrForallProof(s, initializationAreaBuilder, definedness, exporter, locals, etran);
           // All done, so put the two pieces together
           builder.Add(new Bpl.IfCmd(s.Tok, null, definedness.Collect(s.Tok), null, exporter.Collect(s.Tok)));
           builder.AddCaptureState(stmt);
@@ -421,12 +421,12 @@ namespace Microsoft.Dafny {
         this.fuelContext = FuelSetting.PopFuelContext();
 
       } else if (stmt is CalcStmt calcStmt) {
-        TrCalcStmt(calcStmt, builder, locals, etran);
+        TrCalcStmt(calcStmt, initializationAreaBuilder, builder, locals, etran);
 
       } else if (stmt is NestedMatchStmt nestedMatchStmt) {
-        TrStmt(nestedMatchStmt.Flattened, builder, locals, etran);
+        TrStmt(nestedMatchStmt.Flattened, initializationAreaBuilder, builder, locals, etran);
       } else if (stmt is MatchStmt matchStmt) {
-        TrMatchStmt(matchStmt, builder, locals, etran);
+        TrMatchStmt(matchStmt, initializationAreaBuilder, builder, locals, etran);
       } else if (stmt is VarDeclStmt) {
         var s = (VarDeclStmt)stmt;
         var newLocalIds = new List<Bpl.IdentifierExpr>();
@@ -477,7 +477,7 @@ namespace Microsoft.Dafny {
           }
         }
         if (s.Update != null) {
-          TrStmt(s.Update, builder, locals, etran);
+          TrStmt(s.Update, initializationAreaBuilder, builder, locals, etran);
         }
       } else if (stmt is VarDeclPattern) {
         var s = (VarDeclPattern)stmt;
@@ -498,7 +498,7 @@ namespace Microsoft.Dafny {
         var r = new Bpl.LocalVariable(pat.tok, new Bpl.TypedIdent(pat.tok, nm, TrType(rhs.Type)));
         locals.Add(r);
         var rIe = new Bpl.IdentifierExpr(rhs.tok, r);
-        CheckWellformedWithResult(rhs, new WFOptions(null, false, false), rIe, pat.Expr.Type, locals, builder, etran);
+        CheckWellformedWithResult(rhs, new WFOptions(null, false, false), rIe, pat.Expr.Type, locals, initializationAreaBuilder, builder, etran);
         CheckCasePatternShape(pat, rIe, rhs.tok, pat.Expr.Type, builder);
         builder.Add(TrAssumeCmd(pat.tok, Bpl.Expr.Eq(etran.TrExpr(pat.Expr), rIe)));
       } else if (stmt is TryRecoverStatement haltRecoveryStatement) {
@@ -511,7 +511,7 @@ namespace Microsoft.Dafny {
       }
     }
 
-    private void TrPredicateStmt(PredicateStmt stmt, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
+    private void TrPredicateStmt(PredicateStmt stmt, BoogieStmtListBuilder builderInitializationArea, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
       Contract.Requires(stmt != null);
       Contract.Requires(builder != null);
       Contract.Requires(locals != null);
@@ -525,7 +525,7 @@ namespace Microsoft.Dafny {
       if (stmt is AssertStmt || options.DisallowSoundnessCheating) {
         stmtContext = StmtType.ASSERT;
         AddComment(b, stmt, "assert statement");
-        TrStmt_CheckWellformed(stmt.Expr, b, locals, etran, false);
+        TrStmt_CheckWellformed(stmt.Expr, builderInitializationArea, b, locals, etran, false);
         IToken enclosingToken = null;
         if (Attributes.Contains(stmt.Attributes, "_prependAssertToken")) {
           enclosingToken = stmt.Tok;
@@ -537,7 +537,7 @@ namespace Microsoft.Dafny {
             proofBuilder = new BoogieStmtListBuilder(this, options);
             AddComment(proofBuilder, stmt, "assert statement proof");
             CurrentIdGenerator.Push();
-            TrStmt(((AssertStmt)stmt).Proof, proofBuilder, locals, etran);
+            TrStmt(((AssertStmt)stmt).Proof, builderInitializationArea, proofBuilder, locals, etran);
             CurrentIdGenerator.Pop();
           } else if (assertStmt.Label != null) {
             proofBuilder = new BoogieStmtListBuilder(this, options);
@@ -612,7 +612,7 @@ namespace Microsoft.Dafny {
         AddComment(builder, stmt, "expect statement");
         var s = (ExpectStmt)stmt;
         stmtContext = StmtType.ASSUME;
-        TrStmt_CheckWellformed(s.Expr, builder, locals, etran, false);
+        TrStmt_CheckWellformed(s.Expr, builderInitializationArea, builder, locals, etran, false);
 
         // Need to check the message is well-formed, assuming the expected expression
         // does NOT hold:
@@ -622,7 +622,7 @@ namespace Microsoft.Dafny {
         //  assume false;
         // }
         BoogieStmtListBuilder thnBuilder = new BoogieStmtListBuilder(this, options);
-        TrStmt_CheckWellformed(s.Message, thnBuilder, locals, etran, false);
+        TrStmt_CheckWellformed(s.Message, builderInitializationArea, thnBuilder, locals, etran, false);
         thnBuilder.Add(TrAssumeCmd(stmt.Tok, new Bpl.LiteralExpr(stmt.Tok, false), etran.TrAttributes(stmt.Attributes, null)));
         Bpl.StmtList thn = thnBuilder.Collect(s.Tok);
         builder.Add(new Bpl.IfCmd(stmt.Tok, Bpl.Expr.Not(etran.TrExpr(s.Expr)), thn, null, null));
@@ -632,14 +632,14 @@ namespace Microsoft.Dafny {
         AddComment(builder, stmt, "assume statement");
         var s = (AssumeStmt)stmt;
         stmtContext = StmtType.ASSUME;
-        TrStmt_CheckWellformed(s.Expr, builder, locals, etran, false);
+        TrStmt_CheckWellformed(s.Expr, builderInitializationArea, builder, locals, etran, false);
         builder.Add(TrAssumeCmd(stmt.Tok, etran.TrExpr(s.Expr), etran.TrAttributes(stmt.Attributes, null)));
         stmtContext = StmtType.NONE; // done with translating assume stmt.
       }
       this.fuelContext = FuelSetting.PopFuelContext();
     }
 
-    private void TrCalcStmt(CalcStmt stmt, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
+    private void TrCalcStmt(CalcStmt stmt, BoogieStmtListBuilder initializationAreaBuilder, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
       Contract.Requires(stmt != null);
       Contract.Requires(builder != null);
       Contract.Requires(locals != null);
@@ -683,7 +683,7 @@ namespace Microsoft.Dafny {
           AddComment(b, stmt, "assume wf[lhs]");
           CurrentIdGenerator.Push();
           assertAsAssume = true;
-          TrStmt_CheckWellformed(CalcStmt.Lhs(stmt.Steps[i]), b, locals, etran, false);
+          TrStmt_CheckWellformed(CalcStmt.Lhs(stmt.Steps[i]), initializationAreaBuilder, b, locals, etran, false);
           assertAsAssume = false;
           if (stmt.Steps[i] is BinaryExpr && (((BinaryExpr)stmt.Steps[i]).ResolvedOp == BinaryExpr.ResolvedOpcode.Imp)) {
             // assume line<i>:
@@ -692,7 +692,7 @@ namespace Microsoft.Dafny {
           }
           // hint:
           AddComment(b, stmt, "Hint" + i.ToString());
-          TrStmt(stmt.Hints[i], b, locals, etran);
+          TrStmt(stmt.Hints[i], initializationAreaBuilder, b, locals, etran);
           if (i < stmt.Steps.Count - 1) {
             // non-dummy step
             // check well formedness of the goal line:
@@ -700,13 +700,13 @@ namespace Microsoft.Dafny {
             if (stmt.Steps[i] is TernaryExpr) {
               // check the prefix-equality limit
               var index = ((TernaryExpr)stmt.Steps[i]).E0;
-              TrStmt_CheckWellformed(index, b, locals, etran, false);
+              TrStmt_CheckWellformed(index, initializationAreaBuilder, b, locals, etran, false);
               if (index.Type.IsNumericBased(Type.NumericPersuasion.Int)) {
                 var desc = new PODesc.PrefixEqualityLimit();
                 b.Add(AssertNS(index.tok, Bpl.Expr.Le(Bpl.Expr.Literal(0), etran.TrExpr(index)), desc));
               }
             }
-            TrStmt_CheckWellformed(CalcStmt.Rhs(stmt.Steps[i]), b, locals, etran, false);
+            TrStmt_CheckWellformed(CalcStmt.Rhs(stmt.Steps[i]), initializationAreaBuilder, b, locals, etran, false);
             var ss = TrSplitExpr(stmt.Steps[i], etran, true, out var splitHappened);
             // assert step:
             AddComment(b, stmt, "assert line" + i.ToString() + " " + (stmt.StepOps[i] ?? stmt.Op).ToString() + " line" + (i + 1).ToString());
@@ -728,7 +728,7 @@ namespace Microsoft.Dafny {
         b = new BoogieStmtListBuilder(this, options);
         AddComment(b, stmt, "assert wf[initial]");
         Contract.Assert(stmt.Result != null); // established by the resolver
-        TrStmt_CheckWellformed(CalcStmt.Lhs(stmt.Result), b, locals, etran, false);
+        TrStmt_CheckWellformed(CalcStmt.Lhs(stmt.Result), initializationAreaBuilder, b, locals, etran, false);
         b.Add(TrAssumeCmd(stmt.Tok, Bpl.Expr.False));
         ifCmd = new Bpl.IfCmd(stmt.Tok, null, b.Collect(stmt.Tok), ifCmd, null);
         builder.Add(ifCmd);
@@ -741,7 +741,7 @@ namespace Microsoft.Dafny {
       this.fuelContext = FuelSetting.PopFuelContext();
     }
 
-    private void TrMatchStmt(MatchStmt stmt, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
+    private void TrMatchStmt(MatchStmt stmt, BoogieStmtListBuilder builderInitializationArea, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
       Contract.Requires(stmt != null);
       Contract.Requires(builder != null);
       Contract.Requires(locals != null);
@@ -749,7 +749,7 @@ namespace Microsoft.Dafny {
 
       FillMissingCases(stmt);
 
-      TrStmt_CheckWellformed(stmt.Source, builder, locals, etran, true);
+      TrStmt_CheckWellformed(stmt.Source, builderInitializationArea, builder, locals, etran, true);
       Bpl.Expr source = etran.TrExpr(stmt.Source);
       var b = new BoogieStmtListBuilder(this, options);
       b.Add(TrAssumeCmd(stmt.Tok, Bpl.Expr.False));
@@ -797,7 +797,7 @@ namespace Microsoft.Dafny {
 
         // translate the body into b
         var prevDefiniteAssignmentTrackerCount = definiteAssignmentTrackers.Count;
-        TrStmtList(mc.Body, b, locals, etran);
+        TrStmtList(mc.Body, builderInitializationArea, b, locals, etran);
         RemoveDefiniteAssignmentTrackers(mc.Body, prevDefiniteAssignmentTrackerCount);
 
         Bpl.Expr guard = Bpl.Expr.Eq(source, r);
@@ -849,7 +849,7 @@ namespace Microsoft.Dafny {
       }
     }
 
-    private void TrForLoop(ForLoopStmt stmt, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
+    private void TrForLoop(ForLoopStmt stmt, BoogieStmtListBuilder builderInitializationArea, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
       Contract.Requires(stmt != null);
       Contract.Requires(builder != null);
       Contract.Requires(locals != null);
@@ -875,7 +875,7 @@ namespace Microsoft.Dafny {
         var bLoVar = new Bpl.LocalVariable(lo.tok, new Bpl.TypedIdent(lo.tok, name, Bpl.Type.Int));
         locals.Add(bLoVar);
         bLo = new Bpl.IdentifierExpr(lo.tok, name);
-        CheckWellformed(lo, new WFOptions(null, false), locals, builder, etran);
+        CheckWellformed(lo, new WFOptions(null, false), locals, builderInitializationArea, builder, etran);
         builder.Add(Bpl.Cmd.SimpleAssign(lo.tok, bLo, etran.TrExpr(lo)));
         dLo = new BoogieWrapper(bLo, lo.Type);
       }
@@ -884,7 +884,7 @@ namespace Microsoft.Dafny {
         var bHiVar = new Bpl.LocalVariable(hi.tok, new Bpl.TypedIdent(hi.tok, name, Bpl.Type.Int));
         locals.Add(bHiVar);
         bHi = new Bpl.IdentifierExpr(hi.tok, name);
-        CheckWellformed(hi, new WFOptions(null, false), locals, builder, etran);
+        CheckWellformed(hi, new WFOptions(null, false), locals, builderInitializationArea, builder, etran);
         builder.Add(Bpl.Cmd.SimpleAssign(hi.tok, bHi, etran.TrExpr(hi)));
         dHi = new BoogieWrapper(bHi, hi.Type);
       }
@@ -934,7 +934,7 @@ namespace Microsoft.Dafny {
           if (!stmt.GoingUp) {
             bld.Add(Bpl.Cmd.SimpleAssign(stmt.Tok, bIndex, Bpl.Expr.Sub(bIndex, Bpl.Expr.Literal(1))));
           }
-          TrStmt(stmt.Body, bld, locals, e);
+          TrStmt(stmt.Body, builderInitializationArea, bld, locals, e);
           InsertContinueTarget(stmt, bld);
           if (stmt.GoingUp) {
             bld.Add(Bpl.Cmd.SimpleAssign(stmt.Tok, bIndex, Bpl.Expr.Add(bIndex, Bpl.Expr.Literal(1))));
@@ -943,10 +943,10 @@ namespace Microsoft.Dafny {
         };
       }
 
-      TrLoop(stmt, guard, bodyTr, builder, locals, etran, freeInvariant, stmt.Decreases.Expressions.Count != 0);
+      TrLoop(stmt, guard, bodyTr, builderInitializationArea, builder, locals, etran, freeInvariant, stmt.Decreases.Expressions.Count != 0);
     }
 
-    private void TrWhileStmt(WhileStmt stmt, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
+    private void TrWhileStmt(WhileStmt stmt, BoogieStmtListBuilder builderInitializationArea, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
       Contract.Requires(stmt != null);
       Contract.Requires(builder != null);
       Contract.Requires(locals != null);
@@ -959,16 +959,16 @@ namespace Microsoft.Dafny {
       if (stmt.Body != null) {
         bodyTr = delegate (BoogieStmtListBuilder bld, ExpressionTranslator e) {
           CurrentIdGenerator.Push();
-          TrStmt(stmt.Body, bld, locals, e);
+          TrStmt(stmt.Body, builderInitializationArea, bld, locals, e);
           InsertContinueTarget(stmt, bld);
           CurrentIdGenerator.Pop();
         };
       }
-      TrLoop(stmt, stmt.Guard, bodyTr, builder, locals, etran);
+      TrLoop(stmt, stmt.Guard, bodyTr, builderInitializationArea, builder, locals, etran);
       this.fuelContext = FuelSetting.PopFuelContext();
     }
 
-    private void TrIfStmt(IfStmt stmt, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
+    private void TrIfStmt(IfStmt stmt, BoogieStmtListBuilder builderInitializationArea, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
       Contract.Requires(stmt != null);
       Contract.Requires(builder != null);
       Contract.Requires(locals != null);
@@ -980,7 +980,7 @@ namespace Microsoft.Dafny {
         guard = null;
       } else {
         guard = stmt.IsBindingGuard ? AlphaRename((ExistsExpr)stmt.Guard, "eg$") : stmt.Guard;
-        TrStmt_CheckWellformed(guard, builder, locals, etran, true);
+        TrStmt_CheckWellformed(guard, builderInitializationArea, builder, locals, etran, true);
       }
       BoogieStmtListBuilder b = new BoogieStmtListBuilder(this, options);
       if (stmt.IsBindingGuard) {
@@ -990,7 +990,7 @@ namespace Microsoft.Dafny {
         CurrentIdGenerator.Pop();
       }
       CurrentIdGenerator.Push();
-      Bpl.StmtList thn = TrStmt2StmtList(b, stmt.Thn, locals, etran);
+      Bpl.StmtList thn = TrStmt2StmtList(builderInitializationArea, b, stmt.Thn, locals, etran);
       CurrentIdGenerator.Pop();
       Bpl.StmtList els;
       Bpl.IfCmd elsIf = null;
@@ -1002,7 +1002,7 @@ namespace Microsoft.Dafny {
         els = b.Collect(stmt.Tok);
       } else {
         CurrentIdGenerator.Push();
-        els = TrStmt2StmtList(b, stmt.Els, locals, etran);
+        els = TrStmt2StmtList(builderInitializationArea, b, stmt.Els, locals, etran);
         CurrentIdGenerator.Pop();
         if (els.BigBlocks.Count == 1) {
           Bpl.BigBlock bb = els.BigBlocks[0];
@@ -1016,7 +1016,7 @@ namespace Microsoft.Dafny {
     }
 
 
-    void TrForallProof(ForallStmt s, BoogieStmtListBuilder definedness, BoogieStmtListBuilder exporter, List<Variable> locals, ExpressionTranslator etran) {
+    void TrForallProof(ForallStmt s, BoogieStmtListBuilder initializationAreaBuilder, BoogieStmtListBuilder definedness, BoogieStmtListBuilder exporter, List<Variable> locals, ExpressionTranslator etran) {
       // Translate:
       //   forall (x,y | Range(x,y))
       //     ensures Post(x,y);
@@ -1053,18 +1053,18 @@ namespace Microsoft.Dafny {
         definedness.Add(new Bpl.HavocCmd(s.Tok, havocIds));
         definedness.Add(TrAssumeCmd(s.Tok, typeAntecedent));
       }
-      TrStmt_CheckWellformed(s.Range, definedness, locals, etran, false);
+      TrStmt_CheckWellformed(s.Range, initializationAreaBuilder, definedness, locals, etran, false);
       definedness.Add(TrAssumeCmd(s.Range.tok, etran.TrExpr(s.Range)));
 
       var ensuresDefinedness = new BoogieStmtListBuilder(this, options);
       foreach (var ens in s.Ens) {
-        TrStmt_CheckWellformed(ens.E, ensuresDefinedness, locals, etran, false);
+        TrStmt_CheckWellformed(ens.E, initializationAreaBuilder, ensuresDefinedness, locals, etran, false);
         ensuresDefinedness.Add(TrAssumeCmd(ens.E.tok, etran.TrExpr(ens.E)));
       }
       PathAsideBlock(s.Tok, ensuresDefinedness, definedness);
 
       if (s.Body != null) {
-        TrStmt(s.Body, definedness, locals, etran);
+        TrStmt(s.Body, initializationAreaBuilder, definedness, locals, etran);
 
         // check that postconditions hold
         foreach (var ens in s.Ens) {
@@ -1096,7 +1096,7 @@ namespace Microsoft.Dafny {
     /// "lhs" is expected to be a resolved form of an expression, i.e., not a concrete-syntax expression.
     /// </summary>
     void TrAssignment(Statement stmt, Expression lhs, AssignmentRhs rhs,
-      BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
+      BoogieStmtListBuilder builderInitializationArea, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
       Contract.Requires(stmt != null);
       Contract.Requires(lhs != null);
       Contract.Requires(!(lhs is ConcreteSyntaxExpression));
@@ -1108,17 +1108,17 @@ namespace Microsoft.Dafny {
       Contract.Requires(predef != null);
 
       var lhss = new List<Expression>() { lhs };
-      ProcessLhss(lhss, rhs.CanAffectPreviouslyKnownExpressions, true, builder, locals, etran,
+      ProcessLhss(lhss, rhs.CanAffectPreviouslyKnownExpressions, true, builderInitializationArea, builder, locals, etran,
         out var lhsBuilder, out var bLhss, out var ignore1, out var ignore2, out var ignore3);
       Contract.Assert(lhsBuilder.Count == 1 && bLhss.Count == 1);  // guaranteed by postcondition of ProcessLhss
 
       var rhss = new List<AssignmentRhs>() { rhs };
-      ProcessRhss(lhsBuilder, bLhss, lhss, rhss, builder, locals, etran);
+      ProcessRhss(lhsBuilder, bLhss, lhss, rhss, builderInitializationArea, builder, locals, etran);
       builder.AddCaptureState(stmt);
     }
 
     void TrForallAssign(ForallStmt s, AssignStmt s0,
-      BoogieStmtListBuilder definedness, BoogieStmtListBuilder updater, List<Variable> locals, ExpressionTranslator etran) {
+      BoogieStmtListBuilder initializationAreaBuilder, BoogieStmtListBuilder definedness, BoogieStmtListBuilder updater, List<Variable> locals, ExpressionTranslator etran) {
       // The statement:
       //   forall (x,y | Range(x,y)) {
       //     (a)   E(x,y) . f :=  G(x,y);
@@ -1190,18 +1190,18 @@ namespace Microsoft.Dafny {
 
       var substMap = SetupBoundVarsAsLocals(s.BoundVars, definedness, locals, etran);
       Expression range = Substitute(s.Range, null, substMap);
-      TrStmt_CheckWellformed(range, definedness, locals, etran, false);
+      TrStmt_CheckWellformed(range, initializationAreaBuilder, definedness, locals, etran, false);
       definedness.Add(TrAssumeCmd(s.Range.tok, etran.TrExpr(range)));
 
       var lhs = Substitute(s0.Lhs.Resolved, null, substMap);
-      TrStmt_CheckWellformed(lhs, definedness, locals, etran, false);
+      TrStmt_CheckWellformed(lhs, initializationAreaBuilder, definedness, locals, etran, false);
       string description = GetObjFieldDetails(lhs, etran, out var obj, out var F);
       definedness.Add(Assert(lhs.tok, Bpl.Expr.SelectTok(lhs.tok, etran.ModifiesFrame(lhs.tok), obj, F),
         new PODesc.Modifiable(description)));
       if (s0.Rhs is ExprRhs) {
         var r = (ExprRhs)s0.Rhs;
         var rhs = Substitute(r.Expr, null, substMap);
-        TrStmt_CheckWellformed(rhs, definedness, locals, etran, false);
+        TrStmt_CheckWellformed(rhs, initializationAreaBuilder, definedness, locals, etran, false);
         // check nat restrictions for the RHS
         Type lhsType;
         if (lhs is MemberSelectExpr) {
@@ -1348,7 +1348,7 @@ namespace Microsoft.Dafny {
     }
 
     void TrLoop(LoopStmt s, Expression Guard, BodyTranslator/*?*/ bodyTr,
-                BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran,
+                BoogieStmtListBuilder initializationAreaBuilder, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran,
                 Bpl.Expr freeInvariant = null, bool includeTerminationCheck = true) {
       Contract.Requires(s != null);
       Contract.Requires(builder != null);
@@ -1372,7 +1372,7 @@ namespace Microsoft.Dafny {
       }
 
       if (s.Mod.Expressions != null) { // check well-formedness and that the modifies is a subset
-        CheckFrameWellFormed(new WFOptions(), s.Mod.Expressions, locals, builder, etran);
+        CheckFrameWellFormed(new WFOptions(), s.Mod.Expressions, locals, initializationAreaBuilder, builder, etran);
         CheckFrameSubset(s.Tok, s.Mod.Expressions, null, null, etran, etran.ModifiesFrame(s.Tok), builder, new PODesc.FrameSubset("loop modifies clause", true), null);
         DefineFrame(s.Tok, etran.ModifiesFrame(s.Tok), s.Mod.Expressions, builder, locals, loopFrameName);
       }
@@ -1407,7 +1407,7 @@ namespace Microsoft.Dafny {
       BoogieStmtListBuilder invDefinednessBuilder = new BoogieStmtListBuilder(this, options);
       foreach (AttributedExpression loopInv in s.Invariants) {
         var (errorMessage, successMessage) = CustomErrorMessage(loopInv.Attributes);
-        TrStmt_CheckWellformed(loopInv.E, invDefinednessBuilder, locals, etran, false);
+        TrStmt_CheckWellformed(loopInv.E, initializationAreaBuilder, invDefinednessBuilder, locals, etran, false);
         invDefinednessBuilder.Add(TrAssumeCmd(loopInv.E.tok, etran.TrExpr(loopInv.E)));
 
         invariants.Add(TrAssumeCmd(loopInv.E.tok, Bpl.Expr.Imp(w, CanCallAssumption(loopInv.E, etran))));
@@ -1428,7 +1428,7 @@ namespace Microsoft.Dafny {
       }
       // check definedness of decreases clause
       foreach (Expression e in theDecreases) {
-        TrStmt_CheckWellformed(e, invDefinednessBuilder, locals, etran, true);
+        TrStmt_CheckWellformed(e, initializationAreaBuilder, invDefinednessBuilder, locals, etran, true);
       }
       if (codeContext is IMethodCodeContext) {
         var modifiesClause = ((IMethodCodeContext)codeContext).Modifies.Expressions;
@@ -1497,7 +1497,7 @@ namespace Microsoft.Dafny {
       var whereToBuildLoopGuard = isBodyLessLoop ? new BoogieStmtListBuilder(this, options) : loopBodyBuilder;
       Bpl.Expr guard = null;
       if (Guard != null) {
-        TrStmt_CheckWellformed(Guard, whereToBuildLoopGuard, locals, etran, true);
+        TrStmt_CheckWellformed(Guard, initializationAreaBuilder, whereToBuildLoopGuard, locals, etran, true);
         guard = Bpl.Expr.Not(etran.TrExpr(Guard));
       }
       var guardBreak = new BoogieStmtListBuilder(this, options);
@@ -1564,7 +1564,7 @@ namespace Microsoft.Dafny {
     }
 
     void TrAlternatives(List<GuardedAlternative> alternatives, Bpl.Cmd elseCase0, Bpl.StructuredCmd elseCase1,
-                        BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran, bool isGhost) {
+                        BoogieStmtListBuilder builderInitializationArea, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran, bool isGhost) {
       Contract.Requires(alternatives != null);
       Contract.Requires((elseCase0 == null) != (elseCase1 == null));  // ugly way of doing a type union
       Contract.Requires(builder != null);
@@ -1606,7 +1606,7 @@ namespace Microsoft.Dafny {
         CurrentIdGenerator.Push();
         var alternative = alternatives[i];
         b = new BoogieStmtListBuilder(this, options);
-        TrStmt_CheckWellformed(guards[i], b, locals, etran, true);
+        TrStmt_CheckWellformed(guards[i], builderInitializationArea, b, locals, etran, true);
         if (alternative.IsBindingGuard) {
           var exists = (ExistsExpr)alternative.Guard;  // the original (that is, not alpha-renamed) guard
           IntroduceAndAssignExistentialVars(exists, b, builder, locals, etran, isGhost);
@@ -1614,7 +1614,7 @@ namespace Microsoft.Dafny {
           b.Add(new AssumeCmd(alternative.Guard.tok, etran.TrExpr(alternative.Guard)));
         }
         var prevDefiniteAssignmentTrackerCount = definiteAssignmentTrackers.Count;
-        TrStmtList(alternative.Body, b, locals, etran);
+        TrStmtList(alternative.Body, builderInitializationArea, b, locals, etran);
         RemoveDefiniteAssignmentTrackers(alternative.Body, prevDefiniteAssignmentTrackerCount);
         Bpl.StmtList thn = b.Collect(alternative.Tok);
         elsIf = new Bpl.IfCmd(alternative.Tok, null, thn, elsIf, els);
@@ -1625,7 +1625,7 @@ namespace Microsoft.Dafny {
       builder.Add(elsIf);
     }
 
-    void TrCallStmt(CallStmt s, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran, Bpl.IdentifierExpr actualReceiver) {
+    void TrCallStmt(CallStmt s, BoogieStmtListBuilder builderInitializationArea, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran, Bpl.IdentifierExpr actualReceiver) {
       Contract.Requires(s != null);
       Contract.Requires(builder != null);
       Contract.Requires(locals != null);
@@ -1633,7 +1633,7 @@ namespace Microsoft.Dafny {
       Contract.Requires(!(s.Method is Constructor) || (s.Lhs.Count == 0 && actualReceiver != null));
 
       var tySubst = s.MethodSelect.TypeArgumentSubstitutionsWithParents();
-      ProcessLhss(s.Lhs, true, true, builder, locals, etran, out var lhsBuilders, out var bLhss,
+      ProcessLhss(s.Lhs, true, true, builderInitializationArea, builder, locals, etran, out var lhsBuilders, out var bLhss,
         out _, out _, out _, s.OriginalInitialLhs);
       Contract.Assert(s.Lhs.Count == lhsBuilders.Count);
       Contract.Assert(s.Lhs.Count == bLhss.Count);
@@ -1667,7 +1667,7 @@ namespace Microsoft.Dafny {
         builder.Add(Bpl.Cmd.SimpleAssign(s.Tok, initHeap, etran.HeapExpr));
       }
       builder.Add(new CommentCmd("TrCallStmt: Before ProcessCallStmt"));
-      ProcessCallStmt(GetToken(s), tySubst, GetTypeParams(s.Method), s.Receiver, actualReceiver, s.Method, s.MethodSelect.AtLabel, s.Args, bLhss, lhsTypes, builder, locals, etran);
+      ProcessCallStmt(GetToken(s), tySubst, GetTypeParams(s.Method), s.Receiver, actualReceiver, s.Method, s.MethodSelect.AtLabel, s.Args, bLhss, lhsTypes, builderInitializationArea, builder, locals, etran);
       builder.Add(new CommentCmd("TrCallStmt: After ProcessCallStmt"));
       for (int i = 0; i < lhsBuilders.Count; i++) {
         var lhs = s.Lhs[i];
@@ -1712,7 +1712,7 @@ namespace Microsoft.Dafny {
       Expression dafnyReceiver, Bpl.Expr bReceiver,
       Method method, Label/*?*/ atLabel, List<Expression> Args,
       List<Bpl.IdentifierExpr> Lhss, List<Type> LhsTypes,
-      BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
+      BoogieStmtListBuilder initializationAreaBuilder, BoogieStmtListBuilder builder, List<Variable> locals, ExpressionTranslator etran) {
 
       Contract.Requires(tok != null);
       Contract.Requires(dafnyReceiver != null || bReceiver != null);
@@ -1777,7 +1777,7 @@ namespace Microsoft.Dafny {
       Expression receiver = bReceiver == null ? dafnyReceiver : new BoogieWrapper(bReceiver, dafnyReceiver.Type);
       if (!method.IsStatic && !(method is Constructor)) {
         if (bReceiver == null) {
-          TrStmt_CheckWellformed(dafnyReceiver, builder, locals, etran, true);
+          TrStmt_CheckWellformed(dafnyReceiver, initializationAreaBuilder, builder, locals, etran, true);
           if (!(dafnyReceiver is ThisExpr)) {
             CheckNonNull(dafnyReceiver.tok, dafnyReceiver, builder, etran, null);
           }
@@ -1789,7 +1789,7 @@ namespace Microsoft.Dafny {
         ins.Add(obj);
       } else if (receiver is StaticReceiverExpr stexpr) {
         if (stexpr.ObjectToDiscard != null) {
-          TrStmt_CheckWellformed(stexpr.ObjectToDiscard, builder, locals, etran, true);
+          TrStmt_CheckWellformed(stexpr.ObjectToDiscard, initializationAreaBuilder, builder, locals, etran, true);
         }
       }
 
@@ -1828,7 +1828,7 @@ namespace Microsoft.Dafny {
             actual = Args[i];
           }
           if (!(actual is DefaultValueExpression)) {
-            TrStmt_CheckWellformed(actual, builder, locals, etran, true);
+            TrStmt_CheckWellformed(actual, initializationAreaBuilder, builder, locals, etran, true);
           }
           builder.Add(new CommentCmd("ProcessCallStmt: CheckSubrange"));
           // Check the subrange without boxing
@@ -1972,7 +1972,7 @@ namespace Microsoft.Dafny {
 
     void TrForallStmtCall(IToken tok, List<BoundVar> boundVars, List<ComprehensionExpr.BoundedPool> bounds,
       Expression range, ExpressionConverter additionalRange, List<Expression> forallExpressions, CallStmt s0,
-      BoogieStmtListBuilder definedness, BoogieStmtListBuilder exporter, List<Variable> locals, ExpressionTranslator etran) {
+      BoogieStmtListBuilder initializationAreaBuilder, BoogieStmtListBuilder definedness, BoogieStmtListBuilder exporter, List<Variable> locals, ExpressionTranslator etran) {
       Contract.Requires(tok != null);
       Contract.Requires(boundVars != null);
       Contract.Requires(bounds != null);
@@ -2022,14 +2022,14 @@ namespace Microsoft.Dafny {
           definedness.Add(new Bpl.HavocCmd(tok, havocIds));
           definedness.Add(TrAssumeCmd(tok, ante));
         }
-        TrStmt_CheckWellformed(range, definedness, locals, etran, false);
+        TrStmt_CheckWellformed(range, initializationAreaBuilder, definedness, locals, etran, false);
         definedness.Add(TrAssumeCmd(range.tok, etran.TrExpr(range)));
         if (additionalRange != null) {
           var es = additionalRange(new Dictionary<IVariable, Expression>(), etran);
           definedness.Add(TrAssumeCmd(es.tok, es));
         }
 
-        TrStmt(s0, definedness, locals, etran);
+        TrStmt(s0, initializationAreaBuilder, definedness, locals, etran);
 
         definedness.Add(TrAssumeCmd(tok, Bpl.Expr.False));
       }

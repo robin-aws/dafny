@@ -34,7 +34,7 @@ namespace IntegrationTests {
       "/proverOpt:O:smt.qi.eager_threshold=100",
       "/proverOpt:O:smt.delay_units=true",
       "/proverOpt:O:smt.arith.solver=2",
-      "/proverOpt:PROVER_PATH:" + RepositoryRoot + $"../unzippedRelease/dafny/z3/bin/z3-{DafnyOptions.DefaultZ3Version}"
+      "/proverOpt:PROVER_PATH:" + RepositoryRoot + $"Binaries/z3/bin/z3-{DafnyOptions.DefaultZ3Version}"
     };
 
     private static readonly LitTestConfiguration Config;
@@ -95,6 +95,10 @@ namespace IntegrationTests {
             MainMethodLitCommand.Parse(TestDafnyAssembly, new[] { "for-each-compiler" }.Concat(args), config,
               InvokeMainMethodsDirectly)
         }, {
+          "%testDafnyForEachResolver", (args, config) =>
+            MainMethodLitCommand.Parse(TestDafnyAssembly, new[] { "for-each-resolver" }.Concat(args), config,
+              InvokeMainMethodsDirectly)
+        }, {
           "%server", (args, config) =>
             MainMethodLitCommand.Parse(DafnyServerAssembly, args, config, InvokeMainMethodsDirectly)
         }, {
@@ -147,6 +151,9 @@ namespace IntegrationTests {
         commands["%testDafnyForEachCompiler"] = (args, config) =>
           MainMethodLitCommand.Parse(TestDafnyAssembly,
             new[] { "for-each-compiler", "--dafny", dafnyCliPath }.Concat(args), config, false);
+        commands["%testDafnyForEachResolver"] = (args, config) =>
+          MainMethodLitCommand.Parse(TestDafnyAssembly,
+            new[] { "for-each-resolver", "--dafny", dafnyCliPath }.Concat(args), config, false);
         commands["%server"] = (args, config) =>
           new ShellLitCommand(Path.Join(dafnyReleaseDir, "DafnyServer"), args, config.PassthroughEnvironmentVariables);
         commands["%boogie"] = (args, config) =>
@@ -529,6 +536,21 @@ namespace IntegrationTests {
       TextWriter outputWriter,
       TextWriter errorWriter) {
       var exitCode = new MultiBackendTest(inputReader, outputWriter, errorWriter).Start(arguments.Prepend("for-each-compiler"));
+      return (exitCode, "", "");
+    }
+  }
+
+  class MultiResolverLitCommand : ILitCommand {
+    private readonly string[] arguments;
+
+    public MultiResolverLitCommand(IEnumerable<string> arguments, LitTestConfiguration config) {
+      this.arguments = arguments.ToArray();
+    }
+
+    public (int, string, string) Execute(TextReader inputReader,
+      TextWriter outputWriter,
+      TextWriter errorWriter) {
+      var exitCode = new MultiBackendTest(inputReader, outputWriter, errorWriter).Start(arguments.Prepend("for-each-resolver"));
       return (exitCode, "", "");
     }
   }

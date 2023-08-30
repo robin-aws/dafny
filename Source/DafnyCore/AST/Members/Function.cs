@@ -8,7 +8,7 @@ using Microsoft.Dafny.Auditor;
 
 namespace Microsoft.Dafny;
 
-public class Function : MemberDecl, TypeParameter.ParentType, ICallable, ICanFormat, IHasDocstring, ISymbol {
+public class Function : MemberDecl, TypeParameter.ParentType, ICallable, ICanFormat, IHasDocstring, ISymbol, ICanVerify {
   public override string WhatKind => "function";
 
   public string GetFunctionDeclarationKeywords(DafnyOptions options) {
@@ -50,10 +50,6 @@ public class Function : MemberDecl, TypeParameter.ParentType, ICallable, ICanFor
 
     if (Body is null && HasPostcondition && !EnclosingClass.EnclosingModuleDefinition.IsAbstract && !HasExternAttribute && !HasAxiomAttribute) {
       yield return new Assumption(this, tok, AssumptionDescription.NoBody(IsGhost));
-    }
-
-    if (Body is not null && HasConcurrentAttribute) {
-      yield return new Assumption(this, tok, AssumptionDescription.HasConcurrentAttribute);
     }
 
     if (HasExternAttribute) {
@@ -127,13 +123,15 @@ public class Function : MemberDecl, TypeParameter.ParentType, ICallable, ICanFor
     AccumulateRight_Concat,
   }
 
-  public override IEnumerable<INode> Children => new[] { ByMethodDecl }.Where(x => x != null).
+  public override IEnumerable<INode> Children => new[] { ByMethodBody }.Where(x => x != null).
     Concat<Node>(TypeArgs).
     Concat<Node>(Reads).
     Concat<Node>(Req).
     Concat(Ens.Select(e => e.E)).
     Concat(Decreases.Expressions).
-    Concat(Formals).Concat(Result != null ? new List<Node>() { Result } : new List<Node>()).
+    Concat(Formals).
+    Concat(Result != null ? new List<Node>() { Result } : new List<Node>()).
+    Concat(ResultType != null ? new List<Node>() { ResultType } : new List<Node>()).
     Concat(Body == null ? Enumerable.Empty<Node>() : new[] { Body });
 
   public override IEnumerable<INode> PreResolveChildren =>
@@ -476,6 +474,8 @@ experimentalPredicateAlwaysGhost - Compiled functions are written `function`. Gh
   }
 
   public DafnySymbolKind Kind => DafnySymbolKind.Function;
+  public bool ShouldVerify => true; // This could be made more accurate
+  public ModuleDefinition ContainingModule => EnclosingClass.EnclosingModuleDefinition;
   public string GetDescription(DafnyOptions options) {
     var formals = string.Join(", ", Formals.Select(f => f.AsText()));
     var resultType = ResultType.TypeName(options, null, false);

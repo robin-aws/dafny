@@ -9,7 +9,7 @@ namespace Microsoft.Dafny;
 
 public record PrefixNameModule(IReadOnlyList<IToken> Parts, LiteralModuleDecl Module);
 
-public class ModuleDefinition : RangeNode, IAttributeBearingDeclaration, ICloneable<ModuleDefinition>, IDeclarationOrUsage {
+public class ModuleDefinition : RangeNode, IDeclarationOrUsage, IAttributeBearingDeclaration, ICloneable<ModuleDefinition>, IHasSymbolChildren {
 
   public IToken BodyStartTok = Token.NoToken;
   public IToken TokenWithTrailingDocString = Token.NoToken;
@@ -66,7 +66,7 @@ public class ModuleDefinition : RangeNode, IAttributeBearingDeclaration, IClonea
       : new[] { new Pointer<TopLevelDecl>(() => DefaultClass, v => DefaultClass = (DefaultClassDecl)v) }).
     Concat(SourceDecls.ToPointers()).Concat(ResolvedPrefixNamedModules.ToPointers());
 
-  protected IEnumerable<TopLevelDecl> DefaultClasses {
+  public IEnumerable<TopLevelDecl> DefaultClasses {
     get { return DefaultClass == null ? Enumerable.Empty<TopLevelDecl>() : new TopLevelDecl[] { DefaultClass }; }
   }
 
@@ -338,9 +338,11 @@ public class ModuleDefinition : RangeNode, IAttributeBearingDeclaration, IClonea
   }
 
   public IToken NameToken => tok;
-  public override IEnumerable<INode> Children => (Attributes != null ?
-      new List<Node> { Attributes } :
-      Enumerable.Empty<Node>()).Concat<Node>(TopLevelDecls).
+  public override IEnumerable<INode> Children =>
+    (Attributes != null ? new List<Node> { Attributes } : Enumerable.Empty<Node>()).
+    Concat(DefaultClasses).
+    Concat(SourceDecls).
+    Concat(PrefixNamedModules.Any() ? PrefixNamedModules.Select(m => m.Module) : ResolvedPrefixNamedModules).
     Concat(RefinementQId == null ? Enumerable.Empty<Node>() : new Node[] { RefinementQId });
 
   private IEnumerable<Node> preResolveTopLevelDecls;
@@ -349,8 +351,8 @@ public class ModuleDefinition : RangeNode, IAttributeBearingDeclaration, IClonea
   public override IEnumerable<INode> PreResolveChildren {
     get {
       var attributes = Attributes != null ? new List<Node> { Attributes } : Enumerable.Empty<Node>();
-      return attributes.Concat(preResolveTopLevelDecls ?? TopLevelDecls).Concat(
-          (preResolvePrefixNamedModules ?? PrefixNamedModules.Select(tuple => tuple.Module)));
+      return attributes.Concat(preResolveTopLevelDecls ?? TopLevelDecls).
+        Concat(preResolvePrefixNamedModules ?? PrefixNamedModules.Select(tuple => tuple.Module));
     }
   }
 
@@ -390,7 +392,7 @@ public class ModuleDefinition : RangeNode, IAttributeBearingDeclaration, IClonea
           importSig = ((AbstractModuleDecl)d).OriginalSignature;
         }
 
-        if (importSig.ModuleDef is not { SuccessfullyResolved: true }) {
+        if (importSig is not { ModuleDef: { SuccessfullyResolved: true } }) {
           return false;
         }
       } else if (d is LiteralModuleDecl) {
@@ -457,8 +459,9 @@ public class ModuleDefinition : RangeNode, IAttributeBearingDeclaration, IClonea
 
     // Next, add new modules for any remaining entries in "prefixNames".
     foreach (var (name, prefixNamedModules) in prefixModulesByFirstPart) {
-      var firstPartToken = prefixNamedModules.First().Parts[0];
-      var modDef = new ModuleDefinition(firstPartToken.ToRange(), new Name(firstPartToken.ToRange(), name), new List<IToken>(), false,
+      var prefixNameModule = prefixNamedModules.First();
+      var firstPartToken = prefixNameModule.Parts[0];
+      var modDef = new ModuleDefinition(RangeToken.NoToken, new Name(firstPartToken.ToRange(), name), new List<IToken>(), false,
         false, null, this, null, false);
       // Add the new module to the top-level declarations of its parent and then bind its names as usual
 
@@ -466,6 +469,7 @@ public class ModuleDefinition : RangeNode, IAttributeBearingDeclaration, IClonea
       var cloneId = Guid.Empty;
       var subDecl = new LiteralModuleDecl(modDef, this, cloneId);
       ResolvedPrefixNamedModules.Add(subDecl);
+      // only set the range on the last submodule of the chain, since the others can be part of multiple files
       ProcessPrefixNamedModules(prefixNamedModules.ConvertAll(ShortenPrefix), subDecl);
     }
   }
@@ -867,7 +871,7 @@ public class ModuleDefinition : RangeNode, IAttributeBearingDeclaration, IClonea
   });
 
   public DafnySymbolKind Kind => DafnySymbolKind.Namespace;
-  public string GetHoverText(DafnyOptions options, LList<INode> ancestors) {
+  public string GetDescription(DafnyOptions options) {
     return $"module {Name}";
   }
 }

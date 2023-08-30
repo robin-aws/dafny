@@ -3335,8 +3335,8 @@ namespace Microsoft.Dafny {
         } else if (formal.DefaultValue != null) {
           // Note, in the following line, "substMap" is passed in, but it hasn't been fully filled in until the
           // end of this foreach loop. Still, that's soon enough, because DefaultValueExpression won't use it
-          // until FillInDefaultValueExpressions at the end of Pass 1 of the Resolver.
-          var n = new DefaultValueExpression(callTok, formal, receiver, substMap, typeMap);
+          // until FillInDefaultValueExpressions at the end of Pass 0 of the Resolver.
+          var n = new DefaultValueExpressionType(callTok, formal, receiver, substMap, typeMap) { Type = formal.Type.Subst(typeMap) };
           allDefaultValueExpressions.Add(n);
           actuals.Add(n);
           substMap.Add(formal, n);
@@ -4485,7 +4485,6 @@ namespace Microsoft.Dafny {
             }
           }
         } else {
-          bool callsConstructor = false;
           if (rr.Bindings == null) {
             ResolveType(stmt.Tok, rr.EType, resolutionContext, ResolveTypeOptionEnum.InferTypeProxies, null);
             var cl = (rr.EType as UserDefinedType)?.ResolvedClass as NonNullTypeDecl;
@@ -4533,24 +4532,9 @@ namespace Microsoft.Dafny {
                 if (methodSel.Member is Method) {
                   rr.InitCall = new CallStmt(stmt.RangeToken, new List<Expression>(), methodSel, rr.Bindings.ArgumentBindings, initCallTok);
                   ResolveCallStmt(rr.InitCall, resolutionContext, rr.EType);
-                  if (rr.InitCall.Method is Constructor) {
-                    callsConstructor = true;
-                  }
                 } else {
                   reporter.Error(MessageSource.Resolver, initCallTok, "object initialization must denote an initializing method or constructor ({0})", initCallName);
                 }
-              }
-            }
-          }
-          if (rr.EType.IsRefType) {
-            var udt = rr.EType.NormalizeExpand() as UserDefinedType;
-            if (udt != null) {
-              var cl = (ClassLikeDecl)udt.ResolvedClass;  // cast is guaranteed by the call to rr.EType.IsRefType above, together with the "rr.EType is UserDefinedType" test
-              if (!callsConstructor && !cl.IsObjectTrait && !udt.IsArrayType &&
-                  (cl is ClassDecl { HasConstructor: true } || cl.EnclosingModuleDefinition != currentClass.EnclosingModuleDefinition)) {
-                reporter.Error(MessageSource.Resolver, stmt,
-                  "when allocating an object of {1}type '{0}', one of its constructor methods must be called", cl.Name,
-                  cl is ClassDecl { HasConstructor: true } ? "" : "imported ");
               }
             }
           }
@@ -5068,7 +5052,7 @@ namespace Microsoft.Dafny {
       Contract.Requires(enclosingTypeDefinition != null);
       Contract.Requires(!lax || enclosingTypeDefinition is ICallable);
 
-      type = type.Normalize();  // we keep constraints, since subset types have their own type-parameter variance specifications; we also keep synonys, since that gives rise to better error messages
+      type = type.Normalize();  // we keep constraints, since subset types have their own type-parameter variance specifications; we also keep synonyms, since that gives rise to better error messages
       if (type is BasicType) {
         // fine
       } else if (type is MapType) {

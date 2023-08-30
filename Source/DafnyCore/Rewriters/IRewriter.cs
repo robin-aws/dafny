@@ -27,7 +27,7 @@ namespace Microsoft.Dafny {
     ///     reporter.Error(MessageSource.Compiler, token, "[Your plugin] Your error message here");
     ///
     /// The token is usually obtained on expressions and statements in the field `tok`
-    /// If you do not have access to them, use moduleDefinition.GetFirstTopLevelToken()
+    /// If you do not have access to them, use moduleDefinition.GetStartOfFirstFileToken()
     /// </summary>
     /// <param name="reporter">The error reporter. Usually outputs automatically to IDE or command-line</param>
     protected internal IRewriter(ErrorReporter reporter) {
@@ -110,6 +110,10 @@ namespace Microsoft.Dafny {
     /// <param name="program">The entire program after it is fully resolved</param>
     internal virtual void PostResolve(Program program) {
       Contract.Requires(program != null);
+    }
+
+    internal virtual void PreVerify(ModuleDefinition module) {
+      Contract.Requires(module != null);
     }
 
     public virtual void PostVerification(Program program) {

@@ -59,32 +59,36 @@ namespace Microsoft.Dafny.Compilers {
 
     protected override ConcreteSyntaxTree CreateModule(string moduleName, bool isDefault, bool isExtern, string/*?*/ libraryName, ConcreteSyntaxTree wr) {
       moduleName = IdProtect(moduleName);
-      if (!isExtern || libraryName != null) {
-        wr.Write("let {0} = ", moduleName);
-      }
-
-      string footer = ")(); // end of module " + moduleName;
-      var block = wr.NewBlock("(function()", footer);
-      var beforeReturnBody = block.Fork(0);
-      if (!isExtern) {
-        // create new module here
-        beforeReturnBody.WriteLine("let $module = {};");
-      } else if (libraryName == null) {
-        // extend a module provided in another .js file
-        beforeReturnBody.WriteLine("let $module = {0};", moduleName);
-      } else {
-        // require a library
-        beforeReturnBody.WriteLine("let $module = require(\"{0}\");", libraryName);
-      }
-      block.WriteLine("return $module;");
-      return beforeReturnBody;
+      var fileName = $"{moduleName}.ts";
+      var fileWr = wr.NewFile(fileName);
+      fileWr.WriteLine("// @ts-nocheck");
+      return fileWr.NewNamedBlock($"module {moduleName}");
+      // if (!isExtern || libraryName != null) {
+      //   wr.Write("let {0} = ", moduleName);
+      // }
+      //
+      // string footer = ")(); // end of module " + moduleName;
+      // var block = wr.NewBlock("(function()", footer);
+      // var beforeReturnBody = block.Fork(0);
+      // if (!isExtern) {
+      //   // create new module here
+      //   beforeReturnBody.WriteLine("let $module = {};");
+      // } else if (libraryName == null) {
+      //   // extend a module provided in another .js file
+      //   beforeReturnBody.WriteLine("let $module = {0};", moduleName);
+      // } else {
+      //   // require a library
+      //   beforeReturnBody.WriteLine("let $module = require(\"{0}\");", libraryName);
+      // }
+      // block.WriteLine("return $module;");
+      // return beforeReturnBody;
     }
 
     protected override string GetHelperModuleName() => "_dafny";
 
     protected override IClassWriter CreateClass(string moduleName, string name, bool isExtern, string/*?*/ fullPrintName,
       List<TypeParameter> typeParameters, TopLevelDecl cls, List<Type>/*?*/ superClasses, IToken tok, ConcreteSyntaxTree wr) {
-      var w = wr.NewBlock(string.Format("$module.{0} = class {0}" + (isExtern ? " extends $module.{0}" : ""), name), ";");
+      var w = wr.NewBlock(string.Format("class {0}" + (isExtern ? " extends {0}" : ""), name), ";");
       w.Write("constructor (");
       var sep = "";
       if (typeParameters != null && WriteRuntimeTypeDescriptorsFormals(typeParameters, false, w) > 0) {
@@ -122,7 +126,7 @@ namespace Microsoft.Dafny.Compilers {
 
     protected override IClassWriter CreateTrait(string name, bool isExtern, List<TypeParameter> typeParameters /*?*/,
       TraitDecl trait, List<Type> superClasses /*?*/, IToken tok, ConcreteSyntaxTree wr) {
-      var w = wr.NewBlock(string.Format("$module.{0} = class {0}", IdProtect(name)), ";");
+      var w = wr.NewBlock(string.Format("class {0}", IdProtect(name)), ";");
       var fieldWriter = w;  // not used for traits, but we need a value to give to the ClassWriter
       var methodWriter = w;
       return new ClassWriter(this, methodWriter, fieldWriter);
@@ -202,7 +206,7 @@ namespace Microsoft.Dafny.Compilers {
     protected override IClassWriter/*?*/ DeclareDatatype(DatatypeDecl dt, ConcreteSyntaxTree wr) {
       // ===== For inductive datatypes:
       //
-      // $module.Dt = class Dt {
+      // class Dt {
       //   constructor(tag) {
       //     this.$tag = tag;
       //   }
@@ -250,7 +254,7 @@ namespace Microsoft.Dafny.Compilers {
       //
       // ===== For co-inductive datatypes:
       //
-      // $module.Dt = class Dt {
+      // class Dt {
       //   constructor(tag) {
       //     this.$tag = tag;
       //   }
@@ -322,7 +326,7 @@ namespace Microsoft.Dafny.Compilers {
       var simplifiedType = DatatypeWrapperEraser.SimplifyType(Options, UserDefinedType.FromTopLevelDecl(dt.tok, dt));
 
       // from here on, write everything into the new block created here:
-      var btw = wr.NewNamedBlock("$module.{0} = class {0}", DtT_protected);
+      var btw = wr.NewNamedBlock("class {0}", DtT_protected);
       wr = btw;
 
       var wTypeDescriptors = new ConcreteSyntaxTree();
@@ -1568,6 +1572,9 @@ namespace Microsoft.Dafny.Compilers {
         Contract.Assert(!cl.EnclosingModuleDefinition.IsDefaultModule); // default module is not marked ":extern"
         return IdProtect(cl.EnclosingModuleDefinition.GetCompileName(Options));
       } else {
+        // var decl = udt.ResolvedClass;
+        // var localDefinition = decl.EnclosingModuleDefinition == enclosingModule;
+        // return IdProtect(localDefinition ? decl.GetCompileName(Options) : decl.GetFullCompileName(Options));
         return IdProtect(cl.EnclosingModuleDefinition.GetCompileName(Options)) + "." + IdProtect(cl.GetCompileName(Options));
       }
     }

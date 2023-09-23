@@ -19,6 +19,9 @@ public class JavaScriptBackend : ExecutableBackend {
 
   public override bool SupportsInMemoryCompilation => true;
   public override bool TextualTargetIsExecutable => true;
+  
+  public override string TargetBaseDir(string dafnyProgramName) =>
+    $"{Path.GetFileNameWithoutExtension(dafnyProgramName)}-js";
 
   public override IReadOnlySet<string> SupportedNativeTypes =>
     new HashSet<string>(new List<string> { "number" });

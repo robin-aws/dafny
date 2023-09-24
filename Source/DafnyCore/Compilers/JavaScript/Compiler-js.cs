@@ -62,7 +62,7 @@ namespace Microsoft.Dafny.Compilers {
       var fileName = $"{moduleName}.ts";
       var fileWr = wr.NewFile(fileName);
       fileWr.WriteLine("// @ts-nocheck");
-      return fileWr.NewNamedBlock($"module {moduleName}");
+      return fileWr.NewNamedBlock($"export module {moduleName}");
       // if (!isExtern || libraryName != null) {
       //   wr.Write("let {0} = ", moduleName);
       // }
@@ -88,7 +88,7 @@ namespace Microsoft.Dafny.Compilers {
 
     protected override IClassWriter CreateClass(string moduleName, string name, bool isExtern, string/*?*/ fullPrintName,
       List<TypeParameter> typeParameters, TopLevelDecl cls, List<Type>/*?*/ superClasses, IToken tok, ConcreteSyntaxTree wr) {
-      var w = wr.NewBlock(string.Format("class {0}" + (isExtern ? " extends {0}" : ""), name), ";");
+      var w = wr.NewBlock(string.Format("export class {0}" + (isExtern ? " extends {0}" : ""), name), ";");
       w.Write("constructor (");
       var sep = "";
       if (typeParameters != null && WriteRuntimeTypeDescriptorsFormals(typeParameters, false, w) > 0) {
@@ -126,7 +126,7 @@ namespace Microsoft.Dafny.Compilers {
 
     protected override IClassWriter CreateTrait(string name, bool isExtern, List<TypeParameter> typeParameters /*?*/,
       TraitDecl trait, List<Type> superClasses /*?*/, IToken tok, ConcreteSyntaxTree wr) {
-      var w = wr.NewBlock(string.Format("class {0}", IdProtect(name)), ";");
+      var w = wr.NewBlock(string.Format("export class {0}", IdProtect(name)), ";");
       var fieldWriter = w;  // not used for traits, but we need a value to give to the ClassWriter
       var methodWriter = w;
       return new ClassWriter(this, methodWriter, fieldWriter);
@@ -326,7 +326,7 @@ namespace Microsoft.Dafny.Compilers {
       var simplifiedType = DatatypeWrapperEraser.SimplifyType(Options, UserDefinedType.FromTopLevelDecl(dt.tok, dt));
 
       // from here on, write everything into the new block created here:
-      var btw = wr.NewNamedBlock("class {0}", DtT_protected);
+      var btw = wr.NewNamedBlock("export class {0}", DtT_protected);
       wr = btw;
 
       var wTypeDescriptors = new ConcreteSyntaxTree();

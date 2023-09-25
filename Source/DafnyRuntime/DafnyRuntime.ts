@@ -55,31 +55,31 @@ export module _dafny {
   function InstanceOfTrait(obj, trait) {
     return obj._parentTraits !== undefined && obj._parentTraits().includes(trait);
   }
-  class Rtd_bool {
+  export class Rtd_bool {
     static get Default() { return false; }
   }
-  class Rtd_char {
+  export class Rtd_char {
     static get Default() { return 'D'; }  // See CharType.DefaultValue in Dafny source code
   }
-  class Rtd_codepoint {
+  export class Rtd_codepoint {
     static get Default() { return new _dafny.CodePoint('D'.codePointAt(0)); }
   }
-  class Rtd_int {
+  export class Rtd_int {
     static get Default() { return BigInt(0); }
   }
-  class Rtd_number {
+  export class Rtd_number {
     static get Default() { return 0; }
   }
-  class Rtd_ref {
+  export class Rtd_ref {
     static get Default() { return null; }
   }
-  class Rtd_array {
+  export class Rtd_array {
     static get Default() { return []; }
   }
   function ZERO() { BigInt(0); }
   function ONE() { BigInt(1); }
   function NUMBER_LIMIT() { BigInt(0x20) * BigInt(0x1000000000000); } // 2^53
-  class Tuple extends Array {
+  export class Tuple extends Array {
     constructor(...elems) {
       super(...elems);
     }
@@ -106,7 +106,7 @@ export module _dafny {
       };
     }
   }
-  class Set extends Array {
+  export class Set extends Array {
     constructor() {
       super();
     }
@@ -264,7 +264,7 @@ export module _dafny {
       }
     }
   }
-  class MultiSet extends Array {
+  export class MultiSet extends Array {
     constructor() {
       super();
     }
@@ -466,7 +466,7 @@ export module _dafny {
       return this.IsSubsetOf(that) && this.cardinality().isLessThan(that.cardinality());
     }
   }
-  class CodePoint {
+  export class CodePoint {
     constructor(value) {
       this.value = value
     }
@@ -486,7 +486,7 @@ export module _dafny {
       return "'" + escapeCharacter(this) + "'";
     }
   }
-  class Seq extends Array {
+  export class Seq extends Array {
     constructor(...elems) {
       super(...elems);
     }
@@ -596,7 +596,7 @@ export module _dafny {
       return true;
     }
   }
-  class Map extends Array {
+  export class Map extends Array {
     constructor() {
       super();
     }
@@ -711,7 +711,7 @@ export module _dafny {
   function newArray(initValue, ...dims) {
     return { dims: dims, elmts: buildArray(initValue, ...dims) };
   }
-  class BigOrdinal {
+  export class BigOrdinal {
     static get Default() {
       return _dafny.ZERO;
     }
@@ -728,7 +728,7 @@ export module _dafny {
       return true;  // at run time, every ORDINAL is a natural number
     }
   }
-  class BigRational {
+  export class BigRational {
     static get ZERO() {
       if (this._zero === undefined) {
         this._zero = new BigRational(_dafny.ZERO);
@@ -1049,7 +1049,7 @@ export module _dafny {
   function* SingleValue(v) {
     yield v;
   }
-  class HaltException extends Error {
+  export class HaltException extends Error {
     constructor(message) {
       super(message)
     }

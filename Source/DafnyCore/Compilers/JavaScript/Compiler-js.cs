@@ -889,12 +889,12 @@ namespace Microsoft.Dafny.Compilers {
       } else if (xType is CharType) {
         return "char";
       } else if (xType is IntType || xType is BigOrdinalType) {
-        return "BigNumber";
+        return "bigint";
       } else if (xType is RealType) {
         return "Dafny.BigRational";
       } else if (xType is BitvectorType) {
         var t = (BitvectorType)xType;
-        return t.NativeType != null ? GetNativeTypeName(t.NativeType) : "BigNumber";
+        return t.NativeType != null ? GetNativeTypeName(t.NativeType) : "bigint";
       } else if (xType.AsNewtype != null && member == null) {  // when member is given, use UserDefinedType case below
         NativeType nativeType = xType.AsNewtype.NativeType;
         if (nativeType != null) {
@@ -1263,7 +1263,7 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override ConcreteSyntaxTree CreateDoublingForLoop(string indexVar, int start, ConcreteSyntaxTree wr) {
-      return wr.NewNamedBlock("for (let {0} = new BigNumber({1}); ; {0} = {0}.multipliedBy(2))", indexVar, start);
+      return wr.NewNamedBlock("for (let {0} = BigInt({1}); ; {0} = {0} * 2n)", indexVar, start);
     }
 
     protected override void EmitIncrementVar(string varName, ConcreteSyntaxTree wr) {
@@ -1390,13 +1390,13 @@ namespace Microsoft.Dafny.Compilers {
       } else if (e.Value is BaseTypes.BigDec) {
         var n = (BaseTypes.BigDec)e.Value;
         if (0 <= n.Exponent) {
-          wr.Write("new _dafny.BigRational(new BigNumber(\"{0}", n.Mantissa);
+          wr.Write("new _dafny.BigRational(BigInt(\"{0}", n.Mantissa);
           for (int i = 0; i < n.Exponent; i++) {
             wr.Write("0");
           }
           wr.Write("\"))");
         } else {
-          wr.Write($"new _dafny.BigRational({IntegerLiteral(n.Mantissa)}, new BigNumber(\"1");
+          wr.Write($"new _dafny.BigRational({IntegerLiteral(n.Mantissa)}, BigInt\"1");
           for (int i = n.Exponent; i < 0; i++) {
             wr.Write("0");
           }
@@ -1411,10 +1411,8 @@ namespace Microsoft.Dafny.Compilers {
         return "_dafny.ZERO";
       } else if (i.IsOne) {
         return "_dafny.ONE";
-      } else if (-0x20_0000_0000_0000L < i && i < 0x20_0000_0000_0000L) {  // 53 bits, plus sign
-        return $"new BigNumber({i})";
       } else {
-        return $"new BigNumber(\"{i}\")";
+        return $"{i}n";
       }
     }
 
@@ -1452,7 +1450,7 @@ namespace Microsoft.Dafny.Compilers {
       if (bvType.NativeType == null) {
         wr.Write("(");
         var middle = wr.Fork();
-        wr.Write(").mod(new BigNumber(2).exponentiatedBy({0}))", bvType.Width);
+        wr.Write(").mod(2n ** {0}n)", bvType.Width);
         return middle;
       } else if (bvType.NativeType.Bitwidth != bvType.Width) {
         // no truncation needed
@@ -1631,7 +1629,7 @@ namespace Microsoft.Dafny.Compilers {
             compiledName = "dims[" + (int)idParam + "]";
           }
           if (id == SpecialField.ID.ArrayLength) {
-            preString = "new BigNumber(";
+            preString = "BigInt(";
             postString = ")";
           }
           break;
@@ -1779,7 +1777,7 @@ namespace Microsoft.Dafny.Compilers {
       if (AsNativeType(fromType) == null) {
         return wr;
       }
-      wr.Write("BigNumber");
+      wr.Write("BigInt");
       return wr.ForkInParens();
     }
 
@@ -1819,7 +1817,7 @@ namespace Microsoft.Dafny.Compilers {
       return w;
     }
 
-    protected override string ArrayIndexToInt(string arrayIndex) => $"new BigNumber({arrayIndex})";
+    protected override string ArrayIndexToInt(string arrayIndex) => $"BigInt{arrayIndex})";
 
     protected override void EmitExprAsNativeInt(Expression expr, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
       TrParenExpr(expr, wr, inLetExprBody, wStmts);
@@ -2011,7 +2009,7 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case ResolvedUnaryOp.Cardinality:
-          TrParenExpr("new BigNumber(", expr, wr, inLetExprBody, wStmts);
+          TrParenExpr("BigInt(", expr, wr, inLetExprBody, wStmts);
           if (expr.Type.AsMultiSetType != null) {
             wr.Write(".cardinality())");
           } else {
@@ -2336,7 +2334,7 @@ namespace Microsoft.Dafny.Compilers {
           Contract.Assert(AsNativeType(e.ToType) == null);
           wr.Write("new _dafny.BigRational(");
           if (AsNativeType(e.E.Type) != null || e.E.Type.IsCharType) {
-            wr.Write("new BigNumber");
+            wr.Write("BigInt");
           }
           if (e.E.Type.IsCharType) {
             wr.Write("(");
@@ -2347,7 +2345,7 @@ namespace Microsoft.Dafny.Compilers {
             wr.Write(UnicodeCharEnabled ? ".value)" : ".charCodeAt(0))");
           }
 
-          wr.Write(", new BigNumber(1))");
+          wr.Write(", 1n)");
         } else if (e.ToType.IsCharType) {
           wr.Write($"{CharFromNumberMethodName()}(");
           TrParenExpr(e.E, wr, inLetExprBody, wStmts);
@@ -2366,7 +2364,7 @@ namespace Microsoft.Dafny.Compilers {
             Contract.Assert(fromNative == null);
             if (toNative == null) {
               // char -> big-integer (int or bv or ORDINAL)
-              wr.Write("new BigNumber(");
+              wr.Write("BigInt(");
               TrParenExpr(e.E, wr, inLetExprBody, wStmts);
               wr.Write(UnicodeCharEnabled ? ".value)" : ".charCodeAt(0))");
             } else {
@@ -2379,7 +2377,7 @@ namespace Microsoft.Dafny.Compilers {
             wr.Append(Expr(e.E, inLetExprBody, wStmts));
           } else if (fromNative != null && toNative == null) {
             // native (int or bv) -> big-integer (int or bv)
-            wr.Write("new BigNumber");
+            wr.Write("BigInt");
             TrParenExpr(e.E, wr, inLetExprBody, wStmts);
           } else {
             // any (int or bv) -> native (int or bv)

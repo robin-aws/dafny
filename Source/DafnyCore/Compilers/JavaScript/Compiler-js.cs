@@ -576,8 +576,8 @@ namespace Microsoft.Dafny.Compilers {
       var w = cw.MethodWriter;
       if (nt.NativeType != null) {
         var wIntegerRangeBody = w.NewBlock("static *IntegerRange(lo, hi)");
-        var wLoopBody = wIntegerRangeBody.NewBlock("while (lo.isLessThan(hi))");
-        wLoopBody.WriteLine("yield lo.toNumber();");
+        var wLoopBody = wIntegerRangeBody.NewBlock("while (lo < hi)");
+        wLoopBody.WriteLine("yield Number(lo);");
         EmitIncrementVar("lo", wLoopBody);
       }
       if (nt.WitnessKind == SubsetTypeDecl.WKind.Compiled) {
@@ -586,8 +586,8 @@ namespace Microsoft.Dafny.Compilers {
         if (nt.NativeType == null) {
           witness.Append(Expr(nt.Witness, false, wStmts));
         } else {
+          witness.Write("Number");
           TrParenExpr(nt.Witness, witness, false, wStmts);
-          witness.Write(".toNumber()");
         }
         DeclareField("Witness", true, true, nt.BaseType, nt.tok, witness.ToString(), w);
       }
@@ -1342,7 +1342,7 @@ namespace Microsoft.Dafny.Compilers {
       var initValue = mustInitialize ? DefaultValue(elementType, wr, tok, true) : null;
       if (dimensions.Count == 1) {
         // handle the common case of 1-dimensional arrays separately
-        wr.Write($"Array(({dimensions[0]}).toNumber())");
+        wr.Write($"Array(Number({dimensions[0]}))");
         if (initValue != null) {
           wr.Write(".fill({0})", initValue);
         }
@@ -1478,13 +1478,16 @@ namespace Microsoft.Dafny.Compilers {
       if (bv.Width == 0) {
         tr(e0, wr, inLetExprBody, wStmts);
       } else {
+        if (needsCast) {
+          wr.Write("Number(");
+        }
         wr.Write("_dafny.{0}(", isRotateLeft ? "RotateLeft" : "RotateRight");
         tr(e0, wr, inLetExprBody, wStmts);
-        wr.Write(", (");
+        wr.Write(", Number(");
         tr(e1, wr, inLetExprBody, wStmts);
-        wr.Write(").toNumber(), {0})", bv.Width);
+        wr.Write("), {0})", bv.Width);
         if (needsCast) {
-          wr.Write(".toNumber()");
+          wr.Write(")");
         }
       }
     }
@@ -1821,10 +1824,10 @@ namespace Microsoft.Dafny.Compilers {
     protected override string ArrayIndexToInt(string arrayIndex) => $"BigInt({arrayIndex})";
 
     protected override void EmitExprAsNativeInt(Expression expr, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
-      TrParenExpr(expr, wr, inLetExprBody, wStmts);
       if (AsNativeType(expr.Type) == null) {
-        wr.Write(".toNumber()");
+        wr.Write("Number");
       }
+      TrParenExpr(expr, wr, inLetExprBody, wStmts);
     }
 
     protected override void EmitIndexCollectionSelect(Expression source, Expression index, bool inLetExprBody,
@@ -1867,15 +1870,15 @@ namespace Microsoft.Dafny.Compilers {
       TrParenExpr(source, wr, inLetExprBody, wStmts);
       if (lo != null) {
         wr.Write(".slice(");
-        wr.Append(Expr(lo, inLetExprBody, wStmts));
+        EmitExprAsNativeInt(lo, inLetExprBody, wr, wStmts);
         if (hi != null) {
           wr.Write(", ");
-          wr.Append(Expr(hi, inLetExprBody, wStmts));
+          EmitExprAsNativeInt(hi, inLetExprBody, wr, wStmts);
         }
         wr.Write(")");
       } else if (hi != null) {
         wr.Write(".slice(0, ");
-        wr.Append(Expr(hi, inLetExprBody, wStmts));
+        EmitExprAsNativeInt(hi, inLetExprBody, wr, wStmts);
         wr.Write(")");
       } else if (fromArray) {
         wr.Write(".slice()");
@@ -2333,10 +2336,7 @@ namespace Microsoft.Dafny.Compilers {
           wr.Write(", 1n)");
         } else if (e.ToType.IsCharType) {
           wr.Write($"{CharFromNumberMethodName()}(");
-          TrParenExpr(e.E, wr, inLetExprBody, wStmts);
-          if (AsNativeType(e.E.Type) == null) {
-            wr.Write(".toNumber()");
-          }
+          EmitExprAsNativeInt(e.E, inLetExprBody, wr, wStmts);
           wr.Write(")");
         } else {
           // (int or bv or char) -> (int or bv or ORDINAL)
@@ -2383,8 +2383,8 @@ namespace Microsoft.Dafny.Compilers {
               wr.Write(".length");
             } else {
               // no optimization applies; use the standard translation
+              wr.Write("Number");
               TrParenExpr(e.E, wr, inLetExprBody, wStmts);
-              wr.Write(".toNumber()");
             }
           }
         }
@@ -2400,10 +2400,13 @@ namespace Microsoft.Dafny.Compilers {
           wr.Write(".toBigNumber().toNumber())");
         } else {
           // real -> (int or bv)
+          if (AsNativeType(e.ToType) != null) {
+            wr.Write("Number(");
+          }
           TrParenExpr(e.E, wr, inLetExprBody, wStmts);
           wr.Write(".toBigNumber()");
           if (AsNativeType(e.ToType) != null) {
-            wr.Write(".toNumber()");
+            wr.Write(")");
           }
         }
       } else if (e.E.Type.IsBigOrdinalType) {

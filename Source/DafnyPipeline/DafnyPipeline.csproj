@@ -56,8 +56,8 @@
       <Link>DafnyRuntime.jar</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\DafnyRuntime\DafnyRuntime.js">
-      <LogicalName>DafnyRuntime.js</LogicalName>
+    <EmbeddedResource Include="..\DafnyRuntime\DafnyRuntime.ts">
+      <LogicalName>DafnyRuntime.ts</LogicalName>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="..\DafnyRuntime\DafnyRuntime.py">

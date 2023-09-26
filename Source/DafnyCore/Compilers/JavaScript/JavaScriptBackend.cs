@@ -15,13 +15,13 @@ public class JavaScriptBackend : ExecutableBackend {
 
   public override string TargetName => "JavaScript";
   public override bool IsStable => true;
-  public override string TargetExtension => "js";
+  public override string TargetExtension => "ts";
 
   public override bool SupportsInMemoryCompilation => true;
   public override bool TextualTargetIsExecutable => true;
   
-  public override string TargetBaseDir(string dafnyProgramName) =>
-    $"{Path.GetFileNameWithoutExtension(dafnyProgramName)}-js";
+  // public override string TargetBaseDir(string dafnyProgramName) =>
+  //   $"{Path.GetFileNameWithoutExtension(dafnyProgramName)}-ts";
 
   public override IReadOnlySet<string> SupportedNativeTypes =>
     new HashSet<string>(new List<string> { "number" });
@@ -56,7 +56,7 @@ public class JavaScriptBackend : ExecutableBackend {
     TextWriter outputWriter) {
     Contract.Requires(targetFilename != null || otherFileNames.Count == 0);
 
-    var psi = new ProcessStartInfo("node", "") {
+    var psi = new ProcessStartInfo("ts-node", "") {
       RedirectStandardInput = true,
       RedirectStandardOutput = true,
       RedirectStandardError = true,
@@ -87,7 +87,7 @@ public class JavaScriptBackend : ExecutableBackend {
 #pragma warning restore VSTHRD002
       return nodeProcess.ExitCode == 0;
     } catch (System.ComponentModel.Win32Exception e) {
-      outputWriter.WriteLine("Error: Unable to start node.js ({0}): {1}", psi.FileName, e.Message);
+      outputWriter.WriteLine("Error: Unable to start ts-node ({0}): {1}", psi.FileName, e.Message);
       return false;
     }
   }

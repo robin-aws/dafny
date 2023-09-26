@@ -42,7 +42,7 @@ namespace Microsoft.Dafny.Compilers {
     protected override void EmitHeader(Program program, ConcreteSyntaxTree wr) {
       wr.WriteLine("// Dafny program {0} compiled into JavaScript", program.Name);
       if (Options.IncludeRuntime) {
-        ReadRuntimeSystem(program, "DafnyRuntime.js", wr);
+        ReadRuntimeSystem(program, "DafnyRuntime.ts", wr);
       }
     }
 
@@ -59,10 +59,10 @@ namespace Microsoft.Dafny.Compilers {
 
     protected override ConcreteSyntaxTree CreateModule(string moduleName, bool isDefault, bool isExtern, string/*?*/ libraryName, ConcreteSyntaxTree wr) {
       moduleName = IdProtect(moduleName);
-      var fileName = $"{moduleName}.ts";
-      var fileWr = wr.NewFile(fileName);
-      fileWr.WriteLine("// @ts-nocheck");
-      return fileWr.NewNamedBlock($"export module {moduleName}");
+      // var fileName = $"{moduleName}.ts";
+      // var fileWr = wr.NewFile(fileName);
+      wr.WriteLine("// @ts-nocheck");
+      return wr.NewNamedBlock($"export module {moduleName}");
       // if (!isExtern || libraryName != null) {
       //   wr.Write("let {0} = ", moduleName);
       // }
@@ -1396,7 +1396,7 @@ namespace Microsoft.Dafny.Compilers {
           }
           wr.Write("\"))");
         } else {
-          wr.Write($"new _dafny.BigRational({IntegerLiteral(n.Mantissa)}, BigInt\"1");
+          wr.Write($"new _dafny.BigRational({IntegerLiteral(n.Mantissa)}, BigInt(\"1");
           for (int i = n.Exponent; i < 0; i++) {
             wr.Write("0");
           }
@@ -1817,7 +1817,7 @@ namespace Microsoft.Dafny.Compilers {
       return w;
     }
 
-    protected override string ArrayIndexToInt(string arrayIndex) => $"BigInt{arrayIndex})";
+    protected override string ArrayIndexToInt(string arrayIndex) => $"BigInt({arrayIndex})";
 
     protected override void EmitExprAsNativeInt(Expression expr, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
       TrParenExpr(expr, wr, inLetExprBody, wStmts);
@@ -2103,10 +2103,8 @@ namespace Microsoft.Dafny.Compilers {
 
         case BinaryExpr.ResolvedOpcode.EqCommon: {
             var eqType = DatatypeWrapperEraser.SimplifyType(Options, e0.Type);
-            if (IsDirectlyComparable(eqType)) {
+            if (IsDirectlyComparable(eqType) || eqType.IsIntegerType || eqType.IsBitVectorType) {
               opString = "===";
-            } else if (eqType.IsIntegerType || eqType.IsBitVectorType) {
-              callString = "isEqualTo";
             } else if (eqType.IsRealType) {
               callString = "equals";
             } else {
@@ -2116,11 +2114,8 @@ namespace Microsoft.Dafny.Compilers {
           }
         case BinaryExpr.ResolvedOpcode.NeqCommon: {
             var eqType = DatatypeWrapperEraser.SimplifyType(Options, e0.Type);
-            if (IsDirectlyComparable(eqType)) {
+            if (IsDirectlyComparable(eqType) || eqType.IsIntegerType) {
               opString = "!==";
-            } else if (eqType.IsIntegerType) {
-              preOpString = "!";
-              callString = "isEqualTo";
             } else if (eqType.IsRealType) {
               preOpString = "!";
               callString = "equals";
@@ -2132,19 +2127,17 @@ namespace Microsoft.Dafny.Compilers {
           }
 
         case BinaryExpr.ResolvedOpcode.Lt:
-          if (AsNativeType(e0.Type) != null) {
+          if (AsNativeType(e0.Type) != null || IsRepresentedAsBigNumber(e0.Type)) {
             opString = "<";
-          } else if (IsRepresentedAsBigNumber(e0.Type) || e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
+          } else if (e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
             callString = "isLessThan";
           } else {
             Contract.Assert(false); throw new cce.UnreachableException();
           }
           break;
         case BinaryExpr.ResolvedOpcode.Le:
-          if (AsNativeType(e0.Type) != null) {
+          if (AsNativeType(e0.Type) != null || IsRepresentedAsBigNumber(e0.Type)) {
             opString = "<=";
-          } else if (IsRepresentedAsBigNumber(e0.Type)) {
-            callString = "isLessThanOrEqualTo";
           } else if (e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
             callString = "isAtMost";
           } else {
@@ -2152,11 +2145,8 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Ge:
-          if (AsNativeType(e0.Type) != null) {
+          if (AsNativeType(e0.Type) != null || IsRepresentedAsBigNumber(e0.Type)) {
             opString = ">=";
-          } else if (IsRepresentedAsBigNumber(e0.Type)) {
-            callString = "isLessThanOrEqualTo";
-            reverseArguments = true;
           } else if (e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
             callString = "isAtMost";
             reverseArguments = true;
@@ -2165,9 +2155,9 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Gt:
-          if (AsNativeType(e0.Type) != null) {
+          if (AsNativeType(e0.Type) != null || IsRepresentedAsBigNumber(e0.Type)) {
             opString = ">";
-          } else if (IsRepresentedAsBigNumber(e0.Type) || e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
+          } else if (e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
             callString = "isLessThan";
             reverseArguments = true;
           } else {
@@ -2217,9 +2207,9 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Add:
-          if (resultType.IsIntegerType || resultType.IsRealType || resultType.IsBigOrdinalType) {
+          if (resultType.IsRealType) {
             callString = "plus"; truncateResult = true;
-          } else if (AsNativeType(resultType) != null) {
+          } else if (AsNativeType(resultType) != null || resultType.IsIntegerType || resultType.IsBigOrdinalType) {
             opString = "+";
           } else if (resultType.IsCharType) {
             staticCallString = $"_dafny.{CharMethodQualifier}PlusChar";
@@ -2228,9 +2218,9 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Sub:
-          if (resultType.IsIntegerType || resultType.IsRealType || resultType.IsBigOrdinalType) {
+          if (resultType.IsRealType) {
             callString = "minus"; truncateResult = true;
-          } else if (AsNativeType(resultType) != null) {
+          } else if (AsNativeType(resultType) != null || resultType.IsIntegerType || resultType.IsBigOrdinalType) {
             opString = "-";
           } else if (resultType.IsCharType) {
             staticCallString = $"_dafny.{CharMethodQualifier}MinusChar";
@@ -2239,9 +2229,7 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Mul:
-          if (resultType.IsIntegerType || resultType.IsRealType) {
-            callString = "multipliedBy"; truncateResult = true;
-          } else if (AsNativeType(resultType) != null) {
+          if (AsNativeType(resultType) != null || resultType.IsIntegerType || resultType.IsRealType) {
             opString = "*";
           } else {
             callString = "multipliedBy"; truncateResult = true;
@@ -2259,11 +2247,7 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Mod:
-          if (resultType.IsIntegerType) {
-            callString = "mod";
-          } else if (AsNativeType(resultType) == null) {
-            callString = "mod";
-          } else if (AsNativeType(resultType).LowerBound < BigInteger.Zero) {
+          if (AsNativeType(resultType).LowerBound < BigInteger.Zero) {
             staticCallString = "_dafny.EuclideanModuloNumber";
           } else {
             opString = "%";

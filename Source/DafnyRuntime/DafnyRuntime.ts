@@ -1,8 +1,10 @@
 // Copyright by the contributors to the Dafny Project
 // SPDX-License-Identifier: MIT
 
+// @ts-nocheck
+
 export module _dafny {
-  function areEqual(a, b) {
+  export function areEqual(a, b) {
     if (typeof a === 'string' && b instanceof _dafny.Seq) {
       // Seq.equals(string) works as expected,
       // and the catch-all else block handles that direction.
@@ -23,7 +25,7 @@ export module _dafny {
       return a.equals(b);  // value-type equality
     }
   }
-  function toString(a) {
+  export function toString(a) {
     if (a === null) {
       return "null";
     } else if (typeof a === "number") {
@@ -36,7 +38,7 @@ export module _dafny {
       return a.toString();
     }
   }
-  function escapeCharacter(cp) {
+  export function escapeCharacter(cp) {
     let s = String.fromCodePoint(cp.value)
     switch (s) {
       case '\n': return "\\n";
@@ -49,10 +51,10 @@ export module _dafny {
       default: return s;
     };
   }
-  function NewObject() {
+  export function NewObject() {
     return { _tname: "object" };
   }
-  function InstanceOfTrait(obj, trait) {
+  export function InstanceOfTrait(obj, trait) {
     return obj._parentTraits !== undefined && obj._parentTraits().includes(trait);
   }
   export class Rtd_bool {
@@ -76,9 +78,9 @@ export module _dafny {
   export class Rtd_array {
     static get Default() { return []; }
   }
-  function ZERO() { BigInt(0); }
-  function ONE() { BigInt(1); }
-  function NUMBER_LIMIT() { BigInt(0x20) * BigInt(0x1000000000000); } // 2^53
+  export const ZERO = BigInt(0);
+  export const ONE = BigInt(1);
+  export const NUMBER_LIMIT = BigInt(0x20) * BigInt(0x1000000000000); // 2^53
   export class Tuple extends Array {
     constructor(...elems) {
       super(...elems);
@@ -277,8 +279,8 @@ export module _dafny {
       for (let e of this) {
         let [k, n] = e;
         let ks = _dafny.toString(k);
-        while (!n.isZero()) {
-          n = n.minus(1);
+        while (n !== 0) {
+          n = n - 1n;
           s += sep + ks;
           sep = ", ";
         }
@@ -347,14 +349,14 @@ export module _dafny {
         this.push([k, n]);
       } else {
         let m = this[i][1];
-        this[i] = [k, m.plus(n)];
+        this[i] = [k, m + n];
       }
     }
     update(k, n) {
       let i = this.findIndex(k);
-      if (i < this.length && this[i][1].isEqualTo(n)) {
+      if (i < this.length && this[i][1] == n) {
         return this;
-      } else if (i === this.length && n.isZero()) {
+      } else if (i === this.length && n == 0) {
         return this;
       } else if (i === this.length) {
         let m = this.slice();
@@ -373,7 +375,7 @@ export module _dafny {
       for (let e of this) {
         let [k, n] = e;
         let m = other.get(k);
-        if (!n.isEqualTo(m)) {
+        if (n !== m) {
           return false;
         }
       }
@@ -385,9 +387,9 @@ export module _dafny {
     *Elements_() {
       for (let i = 0; i < this.length; i++) {
         let [k, n] = this[i];
-        while (!n.isZero()) {
+        while (n !== 0) {
           yield k;
-          n = n.minus(1);
+          n = n - 1n;
         }
       }
     }
@@ -397,7 +399,7 @@ export module _dafny {
     *UniqueElements_() {
       for (let e of this) {
         let [k, n] = e;
-        if (!n.isZero()) {
+        if (n !== 0) {
           yield k;
         }
       }
@@ -708,7 +710,7 @@ export module _dafny {
       return m;
     }
   }
-  function newArray(initValue, ...dims) {
+  export function newArray(initValue, ...dims) {
     return { dims: dims, elmts: buildArray(initValue, ...dims) };
   }
   export class BigOrdinal {
@@ -816,7 +818,7 @@ export module _dafny {
       } else {
         return undefined;
       }
-  }
+    }
     toBigNumber() {
       if (this.num == 0 || this.den == 1) {
         return this.num;
@@ -907,7 +909,7 @@ export module _dafny {
       return a.multipliedBy(bReciprocal);
     }
   }
-  function EuclideanDivisionNumber(a, b) {
+  export function EuclideanDivisionNumber(a, b) {
     if (0 <= a) {
       if (0 <= b) {
         // +a +b: a/b
@@ -926,7 +928,7 @@ export module _dafny {
       }
     }
   }
-  function EuclideanDivision(a, b) {
+  export function EuclideanDivision(a, b) {
     if (a.isGreaterThanOrEqualTo(0)) {
       if (b.isGreaterThanOrEqualTo(0)) {
         // +a +b: a/b
@@ -945,7 +947,7 @@ export module _dafny {
       }
     }
   }
-  function EuclideanModuloNumber(a, b) {
+  export function EuclideanModuloNumber(a, b) {
     let bp = Math.abs(b);
     if (0 <= a) {
       // +a: a % bp
@@ -958,62 +960,62 @@ export module _dafny {
       return c === 0 ? c : bp - c;
     }
   }
-  function ShiftLeft(b, n) {
+  export function ShiftLeft(b, n) {
     return b << n;
   }
-  function ShiftRight(b, n) {
+  export function ShiftRight(b, n) {
     return b >> n;
   }
-  function RotateLeft(b, n, w) {  // truncate(b << n) | (b >> (w - n))
+  export function RotateLeft(b, n, w) {  // truncate(b << n) | (b >> (w - n))
     let x = (b << n) % (2n ** w);
     let y = b >> (w - n);
     return x + y;
   }
-  function RotateRight(b, n, w) {  // (b >> n) | truncate(b << (w - n))
+  export function RotateRight(b, n, w) {  // (b >> n) | truncate(b << (w - n))
     let x = b >> n;
     let y = b << (w - n) & (2n ** w);
     return x + y;
   }
-  function BitwiseAnd(a, b) {
+  export function BitwiseAnd(a, b) {
     return a & b;
   }
-  function BitwiseOr(a, b) {
+  export function BitwiseOr(a, b) {
     return a | b;
   }
-  function BitwiseXor(a, b) {
+  export function BitwiseXor(a, b) {
     return a ^ b;
   }
-  function BitwiseNot(a, bits) {
+  export function BitwiseNot(a, bits) {
     return a ^ (2n << bits - 1);
   }
-  function Quantifier(vals, frall, pred) {
+  export function Quantifier(vals, frall, pred) {
     for (let u of vals) {
       if (pred(u) !== frall) { return !frall; }
     }
     return frall;
   }
-  function PlusChar(a, b) {
+  export function PlusChar(a, b) {
     return String.fromCharCode(a.charCodeAt(0) + b.charCodeAt(0));
   }
-  function UnicodePlusChar(a, b) {
+  export function UnicodePlusChar(a, b) {
     return new _dafny.CodePoint(a.value + b.value);
   }
-  function MinusChar(a, b) {
+  export function MinusChar(a, b) {
     return String.fromCharCode(a.charCodeAt(0) - b.charCodeAt(0));
   }
-  function UnicodeMinusChar(a, b) {
+  export function UnicodeMinusChar(a, b) {
     return new _dafny.CodePoint(a.value - b.value);
   }
-  function* AllBooleans() {
+  export function* AllBooleans() {
     yield false;
     yield true;
   }
-  function* AllChars() {
+  export function* AllChars() {
     for (let i = 0; i < 0x10000; i++) {
       yield String.fromCharCode(i);
     }
   }
-  function* AllUnicodeChars() {
+  export function* AllUnicodeChars() {
     for (let i = 0; i < 0xD800; i++) {
       yield new _dafny.CodePoint(i);
     }
@@ -1021,14 +1023,14 @@ export module _dafny {
       yield new _dafny.CodePoint(i);
     }
   }
-  function* AllIntegers() {
+  export function* AllIntegers() {
     yield _dafny.ZERO;
     for (let j = _dafny.ONE;; j = j.plus(1)) {
       yield j;
       yield j.negated();
     }
   }
-  function* IntegerRange(lo, hi) {
+  export function* IntegerRange(lo, hi) {
     if (lo === null) {
       while (true) {
         hi = hi.minus(1);
@@ -1046,7 +1048,7 @@ export module _dafny {
       }
     }
   }
-  function* SingleValue(v) {
+  export function* SingleValue(v) {
     yield v;
   }
   export class HaltException extends Error {
@@ -1054,7 +1056,7 @@ export module _dafny {
       super(message)
     }
   }
-  function HandleHaltExceptions(f) {
+  export function HandleHaltExceptions(f) {
     try {
       f()
     } catch (e) {
@@ -1066,18 +1068,14 @@ export module _dafny {
       }
     }
   }
-  function FromMainArguments(args) {
+  export function FromMainArguments(args) {
     var a = [...args];
     a.splice(0, 2, args[0] + " " + args[1]);
     return a;
   }
-  function UnicodeFromMainArguments(args) {
+  export function UnicodeFromMainArguments(args) {
     return FromMainArguments(args).map(_dafny.Seq.UnicodeFromString);
   }
-
-
-  // TODO: only export symbols up to this point
-
 
   // What follows are routines private to the Dafny runtime
   function buildArray(initValue, ...dims) {

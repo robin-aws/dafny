@@ -279,7 +279,7 @@ export module _dafny {
       for (let e of this) {
         let [k, n] = e;
         let ks = _dafny.toString(k);
-        while (n !== 0) {
+        while (n !== 0n) {
           n = n - 1n;
           s += sep + ks;
           sep = ", ";
@@ -312,7 +312,7 @@ export module _dafny {
       let c = _dafny.ZERO;
       for (let e of this) {
         let [k, n] = e;
-        c = c.plus(n);
+        c = c + n;
       }
       return c;
     }
@@ -341,7 +341,7 @@ export module _dafny {
       }
     }
     contains(k) {
-      return !this.get(k).isZero();
+      return !this.get(k) !== 0n;
     }
     add(k, n) {
       let i = this.findIndex(k);
@@ -379,7 +379,7 @@ export module _dafny {
           return false;
         }
       }
-      return this.cardinality().isEqualTo(other.cardinality());
+      return this.cardinality() == other.cardinality();
     }
     get Elements() {
       return this.Elements_();
@@ -387,7 +387,7 @@ export module _dafny {
     *Elements_() {
       for (let i = 0; i < this.length; i++) {
         let [k, n] = this[i];
-        while (n !== 0) {
+        while (n !== 0n) {
           yield k;
           n = n - 1n;
         }
@@ -399,7 +399,7 @@ export module _dafny {
     *UniqueElements_() {
       for (let e of this) {
         let [k, n] = e;
-        if (n !== 0) {
+        if (n !== 0n) {
           yield k;
         }
       }
@@ -428,8 +428,8 @@ export module _dafny {
         for (let e of this) {
           let [k, n] = e;
           let m = that.get(k);
-          if (!m.isZero()) {
-            s.push([k, m.isLessThan(n) ? m : n]);
+          if (m !== 0n) {
+            s.push([k, m < n ? m : n]);
           }
         }
         return s;
@@ -442,8 +442,8 @@ export module _dafny {
         let s = new MultiSet();
         for (let e of this) {
           let [k, n] = e;
-          let d = n.minus(that.get(k));
-          if (d.isGreaterThan(0)) {
+          let d = n - that.get(k);
+          if (d > 0n) {
             s.push([k, d]);
           }
         }
@@ -452,20 +452,20 @@ export module _dafny {
     }
     IsDisjointFrom(that) {
       let intersection = this.Intersect(that);
-      return intersection.cardinality().isZero();
+      return intersection.cardinality() !== 0n;
     }
     IsSubsetOf(that) {
       for (let e of this) {
         let [k, n] = e;
         let m = that.get(k);
-        if (!n.isLessThanOrEqualTo(m)) {
+        if (n > m) {
           return false;
         }
       }
       return true;
     }
     IsProperSubsetOf(that) {
-      return this.IsSubsetOf(that) && this.cardinality().isLessThan(that.cardinality());
+      return this.IsSubsetOf(that) && this.cardinality() < that.cardinality();
     }
   }
   export class CodePoint {
@@ -750,15 +750,15 @@ export module _dafny {
     // that's what C#'s default struct constructor will produce for BigRational. :(
     // To deal with it, we ignore `den` when `num` is 0.
     toString() {
-      if (this.num.isZero() || this.den.isEqualTo(1)) {
+      if (this.num == 0n || this.den == 1n) {
         return this.num.toFixed() + ".0";
       }
       let answer = this.dividesAPowerOf10(this.den);
       if (answer !== undefined) {
-        let n = this.num.multipliedBy(answer[0]);
+        let n = this.num * answer[0];
         let log10 = answer[1];
         let sign, digits;
-        if (this.num.isLessThan(0)) {
+        if (this.num < 0) {
           sign = "-"; digits = n.negated().toFixed();
         } else {
           sign = ""; digits = n.toFixed();
@@ -770,7 +770,7 @@ export module _dafny {
           return sign + "0." + "0".repeat(log10 - digits.length) + digits;
         }
       } else {
-        return "(" + this.num.toFixed() + ".0 / " + this.den.toFixed() + ".0)";
+        return "(" + this.num.toString() + ".0 / " + this.den.toString() + ".0)";
       }
     }
     isPowerOf10(x) {
@@ -792,28 +792,28 @@ export module _dafny {
     dividesAPowerOf10(i) {
       let factor = _dafny.ONE;
       let log10 = 0;
-      if (i.isLessThanOrEqualTo(_dafny.ZERO)) {
+      if (i <= _dafny.ZERO) {
         return undefined;
       }
 
       // invariant: 1 <= i && i * 10^log10 == factor * old(i)
-      while (i.mod(10).isZero()) {
-        i = i.dividedToIntegerBy(10);
+      while (i % 10n == 0n) {
+        i = i / 10n;
         log10++;
       }
 
-      while (i.mod(5).isZero()) {
-        i = i.dividedToIntegerBy(5);
-        factor = factor.multipliedBy(2);
+      while (i % 5n == 0n) {
+        i = i / 5n;
+        factor = factor * 2n;
         log10++;
       }
-      while (i.mod(2).isZero()) {
-        i = i.dividedToIntegerBy(2);
-        factor = factor.multipliedBy(5);
+      while (i % 2n == 0n) {
+        i = i / 2n;
+        factor = factor * 5n;
         log10++;
       }
 
-      if (i.isEqualTo(_dafny.ONE)) {
+      if (i == _dafny.ONE) {
         return [factor, log10];
       } else {
         return undefined;
@@ -832,7 +832,7 @@ export module _dafny {
     normalize(b) {
       let a = this;
       let aa, bb, dd;
-      if (a.num.isZero()) {
+      if (a.num == 0) {
         aa = a.num;
         bb = b.num;
         dd = b.den;
@@ -842,19 +842,19 @@ export module _dafny {
         bb = b.num;
       } else {
         let gcd = BigNumberGcd(a.den, b.den);
-        let xx = a.den.dividedToIntegerBy(gcd);
-        let yy = b.den.dividedToIntegerBy(gcd);
+        let xx = a.den / gcd;
+        let yy = b.den / gcd;
         // We now have a == a.num / (xx * gcd) and b == b.num / (yy * gcd).
-        aa = a.num.multipliedBy(yy);
-        bb = b.num.multipliedBy(xx);
-        dd = a.den.multipliedBy(yy);
+        aa = a.num * yy;
+        bb = b.num * xx;
+        dd = a.den * yy;
       }
       return [aa, bb, dd];
     }
     compareTo(that) {
       // simple things first
-      let asign = this.num.isZero() ? 0 : this.num.isLessThan(0) ? -1 : 1;
-      let bsign = that.num.isZero() ? 0 : that.num.isLessThan(0) ? -1 : 1;
+      let asign = this.num == 0 ? 0 : this.num < 0 ? -1 : 1;
+      let bsign = that.num == 0 ? 0 : that.num < 0 ? -1 : 1;
       if (asign < 0 && 0 <= bsign) {
         return -1;
       } else if (asign <= 0 && 0 < bsign) {
@@ -891,10 +891,10 @@ export module _dafny {
       return new BigRational(aa.minus(bb), dd);
     }
     negated() {
-      return new BigRational(this.num.negated(), this.den);
+      return new BigRational(-this.num, this.den);
     }
     multipliedBy(b) {
-      return new BigRational(this.num.multipliedBy(b.num), this.den.multipliedBy(b.den));
+      return new BigRational(this.num * b.num, this.den * b.den);
     }
     dividedBy(b) {
       let a = this;
@@ -986,7 +986,7 @@ export module _dafny {
     return a ^ b;
   }
   export function BitwiseNot(a, bits) {
-    return a ^ (2n << bits - 1);
+    return a ^ (2n << bits - 1n);
   }
   export function Quantifier(vals, frall, pred) {
     for (let u of vals) {
@@ -1025,9 +1025,9 @@ export module _dafny {
   }
   export function* AllIntegers() {
     yield _dafny.ZERO;
-    for (let j = _dafny.ONE;; j = j.plus(1)) {
+    for (let j = _dafny.ONE;; j = j + 1n) {
       yield j;
-      yield j.negated();
+      yield -j;
     }
   }
   export function* IntegerRange(lo, hi) {

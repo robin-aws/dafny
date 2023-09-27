@@ -496,7 +496,8 @@ export module _dafny {
       return Seq.of();
     }
     static Create(n, init) {
-      return Seq.from({length: n}, (_, i) => init(BigInt(i)));
+      // TODO: check n fits in Number
+      return Seq.from({length: Number(n)}, (_, i) => init(BigInt(i)));
     }
     static UnicodeFromString(s) {
       return new Seq(...([...s].map(c => new _dafny.CodePoint(c.codePointAt(0)))))

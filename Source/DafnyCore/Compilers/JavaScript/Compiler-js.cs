@@ -1230,7 +1230,7 @@ namespace Microsoft.Dafny.Compilers {
           wr.Write($"{loopIndex.CompileName} < {endVarName}");
         }
         if (nativeType == null) {
-          bodyWr = wr.NewBlock($"; {loopIndex.CompileName} = {loopIndex.CompileName}.plus(_dafny.ONE))");
+          bodyWr = wr.NewBlock($"; {loopIndex.CompileName} = {loopIndex.CompileName} + _dafny.ONE)");
         } else {
           bodyWr = wr.NewBlock($"; {loopIndex.CompileName}++)");
         }
@@ -1244,7 +1244,7 @@ namespace Microsoft.Dafny.Compilers {
         }
         bodyWr = wr.NewBlock($"; )");
         if (nativeType == null) {
-          bodyWr.WriteLine($"{loopIndex.CompileName} = {loopIndex.CompileName}.minus(_dafny.ONE);");
+          bodyWr.WriteLine($"{loopIndex.CompileName} = {loopIndex.CompileName} - s(_dafny.ONE);");
         } else {
           bodyWr.WriteLine($"{loopIndex.CompileName}--;");
         }
@@ -1268,11 +1268,11 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override void EmitIncrementVar(string varName, ConcreteSyntaxTree wr) {
-      wr.WriteLine("{0} = {0}.plus(1);", varName);
+      wr.WriteLine("{0} = {0} + 1n;", varName);
     }
 
     protected override void EmitDecrementVar(string varName, ConcreteSyntaxTree wr) {
-      wr.WriteLine("{0} = {0}.minus(1);", varName);
+      wr.WriteLine("{0} = {0} - 1n;", varName);
     }
 
     protected override string GetQuantifierName(string bvType) {

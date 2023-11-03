@@ -2,6 +2,7 @@
 // Dafny class Outcome<E> compiled into Java
 package DafnyStdLibs.Wrappers;
 
+import DafnyStdLibs.BoundedInts.*;
 
 @SuppressWarnings({"unchecked", "deprecation"})
 public abstract class Outcome<E> {

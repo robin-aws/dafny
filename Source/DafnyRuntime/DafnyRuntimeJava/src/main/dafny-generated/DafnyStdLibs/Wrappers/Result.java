@@ -2,6 +2,7 @@
 // Dafny class Result<R, E> compiled into Java
 package DafnyStdLibs.Wrappers;
 
+import DafnyStdLibs.BoundedInts.*;
 
 @SuppressWarnings({"unchecked", "deprecation"})
 public abstract class Result<R, E> {

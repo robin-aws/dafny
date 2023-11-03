@@ -10,7 +10,215 @@ using System;
 using System.Numerics;
 using System.Collections;
 #endif
+namespace DafnyStdLibs.BoundedInts {
 
+  public partial class __default {
+    public static BigInteger TWO__TO__THE__8 { get {
+      return new BigInteger(256);
+    } }
+    public static BigInteger TWO__TO__THE__16 { get {
+      return new BigInteger(65536);
+    } }
+    public static BigInteger TWO__TO__THE__32 { get {
+      return new BigInteger(4294967296L);
+    } }
+    public static BigInteger TWO__TO__THE__64 { get {
+      return BigInteger.Parse("18446744073709551616");
+    } }
+    public static BigInteger TWO__TO__THE__128 { get {
+      return BigInteger.Parse("340282366920938463463374607431768211456");
+    } }
+    public static BigInteger TWO__TO__THE__7 { get {
+      return new BigInteger(128);
+    } }
+    public static BigInteger TWO__TO__THE__15 { get {
+      return new BigInteger(32768);
+    } }
+    public static BigInteger TWO__TO__THE__31 { get {
+      return new BigInteger(2147483648L);
+    } }
+    public static BigInteger TWO__TO__THE__63 { get {
+      return new BigInteger(9223372036854775808UL);
+    } }
+    public static BigInteger TWO__TO__THE__127 { get {
+      return BigInteger.Parse("170141183460469231731687303715884105728");
+    } }
+    public static BigInteger TWO__TO__THE__0 { get {
+      return BigInteger.One;
+    } }
+    public static BigInteger TWO__TO__THE__1 { get {
+      return new BigInteger(2);
+    } }
+    public static BigInteger TWO__TO__THE__2 { get {
+      return new BigInteger(4);
+    } }
+    public static BigInteger TWO__TO__THE__4 { get {
+      return new BigInteger(16);
+    } }
+    public static BigInteger TWO__TO__THE__5 { get {
+      return new BigInteger(32);
+    } }
+    public static BigInteger TWO__TO__THE__24 { get {
+      return new BigInteger(16777216);
+    } }
+    public static BigInteger TWO__TO__THE__40 { get {
+      return new BigInteger(1099511627776L);
+    } }
+    public static BigInteger TWO__TO__THE__48 { get {
+      return new BigInteger(281474976710656L);
+    } }
+    public static BigInteger TWO__TO__THE__56 { get {
+      return new BigInteger(72057594037927936L);
+    } }
+    public static BigInteger TWO__TO__THE__256 { get {
+      return BigInteger.Parse("115792089237316195423570985008687907853269984665640564039457584007913129639936");
+    } }
+    public static BigInteger TWO__TO__THE__512 { get {
+      return BigInteger.Parse("13407807929942597099574024998205846127479365820592393377723561443721764030073546976801874298166903427690031858186486050853753882811946569946433649006084096");
+    } }
+  }
+
+  public partial class uint8 {
+    public static System.Collections.Generic.IEnumerable<byte> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (byte)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<byte> _TYPE = new Dafny.TypeDescriptor<byte>(0);
+    public static Dafny.TypeDescriptor<byte> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class uint16 {
+    public static System.Collections.Generic.IEnumerable<ushort> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (ushort)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<ushort> _TYPE = new Dafny.TypeDescriptor<ushort>(0);
+    public static Dafny.TypeDescriptor<ushort> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class uint32 {
+    public static System.Collections.Generic.IEnumerable<uint> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (uint)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<uint> _TYPE = new Dafny.TypeDescriptor<uint>(0);
+    public static Dafny.TypeDescriptor<uint> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class uint64 {
+    public static System.Collections.Generic.IEnumerable<ulong> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (ulong)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<ulong> _TYPE = new Dafny.TypeDescriptor<ulong>(0);
+    public static Dafny.TypeDescriptor<ulong> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class uint128 {
+    private static readonly Dafny.TypeDescriptor<BigInteger> _TYPE = new Dafny.TypeDescriptor<BigInteger>(BigInteger.Zero);
+    public static Dafny.TypeDescriptor<BigInteger> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class int8 {
+    public static System.Collections.Generic.IEnumerable<sbyte> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (sbyte)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<sbyte> _TYPE = new Dafny.TypeDescriptor<sbyte>(0);
+    public static Dafny.TypeDescriptor<sbyte> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class int16 {
+    public static System.Collections.Generic.IEnumerable<short> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (short)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<short> _TYPE = new Dafny.TypeDescriptor<short>(0);
+    public static Dafny.TypeDescriptor<short> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class int32 {
+    public static System.Collections.Generic.IEnumerable<int> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (int)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<int> _TYPE = new Dafny.TypeDescriptor<int>(0);
+    public static Dafny.TypeDescriptor<int> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class int64 {
+    public static System.Collections.Generic.IEnumerable<long> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (long)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<long> _TYPE = new Dafny.TypeDescriptor<long>(0);
+    public static Dafny.TypeDescriptor<long> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class int128 {
+    private static readonly Dafny.TypeDescriptor<BigInteger> _TYPE = new Dafny.TypeDescriptor<BigInteger>(BigInteger.Zero);
+    public static Dafny.TypeDescriptor<BigInteger> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class nat8 {
+    public static System.Collections.Generic.IEnumerable<byte> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (byte)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<byte> _TYPE = new Dafny.TypeDescriptor<byte>(0);
+    public static Dafny.TypeDescriptor<byte> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class nat16 {
+    public static System.Collections.Generic.IEnumerable<ushort> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (ushort)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<ushort> _TYPE = new Dafny.TypeDescriptor<ushort>(0);
+    public static Dafny.TypeDescriptor<ushort> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class nat32 {
+    public static System.Collections.Generic.IEnumerable<uint> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (uint)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<uint> _TYPE = new Dafny.TypeDescriptor<uint>(0);
+    public static Dafny.TypeDescriptor<uint> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class nat64 {
+    public static System.Collections.Generic.IEnumerable<ulong> IntegerRange(BigInteger lo, BigInteger hi) {
+      for (var j = lo; j < hi; j++) { yield return (ulong)j; }
+    }
+    private static readonly Dafny.TypeDescriptor<ulong> _TYPE = new Dafny.TypeDescriptor<ulong>(0);
+    public static Dafny.TypeDescriptor<ulong> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+
+  public partial class nat128 {
+    private static readonly Dafny.TypeDescriptor<BigInteger> _TYPE = new Dafny.TypeDescriptor<BigInteger>(BigInteger.Zero);
+    public static Dafny.TypeDescriptor<BigInteger> _TypeDescriptor() {
+      return _TYPE;
+    }
+  }
+} // end of namespace DafnyStdLibs.BoundedInts
 namespace DafnyStdLibs.Functions {
 
 } // end of namespace DafnyStdLibs.Functions
@@ -538,189 +746,3 @@ namespace DafnyStdLibs.Wrappers {
 namespace DafnyStdLibs {
 
 } // end of namespace DafnyStdLibs
-namespace _module {
-
-  public partial class __default {
-    public static void HasTuples()
-    {
-      bool _28_b;
-      _28_b = true;
-      _System._ITuple0 _29_has0;
-      _29_has0 = _System.Tuple0.create();
-      _System._ITuple1<bool> _30_has1;
-      _30_has1 = _System.Tuple1<bool>.create(_28_b);
-      _System._ITuple2<bool, bool> _31_has2;
-      _31_has2 = _System.Tuple2<bool, bool>.create(_28_b, _28_b);
-      _System._ITuple3<bool, bool, bool> _32_has3;
-      _32_has3 = _System.Tuple3<bool, bool, bool>.create(_28_b, _28_b, _28_b);
-      _System._ITuple4<bool, bool, bool, bool> _33_has4;
-      _33_has4 = _System.Tuple4<bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b);
-      _System._ITuple5<bool, bool, bool, bool, bool> _34_has5;
-      _34_has5 = _System.Tuple5<bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple6<bool, bool, bool, bool, bool, bool> _35_has6;
-      _35_has6 = _System.Tuple6<bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple7<bool, bool, bool, bool, bool, bool, bool> _36_has7;
-      _36_has7 = _System.Tuple7<bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple8<bool, bool, bool, bool, bool, bool, bool, bool> _37_has8;
-      _37_has8 = _System.Tuple8<bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple9<bool, bool, bool, bool, bool, bool, bool, bool, bool> _38_has9;
-      _38_has9 = _System.Tuple9<bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple10<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _39_has10;
-      _39_has10 = _System.Tuple10<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple11<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _40_has11;
-      _40_has11 = _System.Tuple11<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple12<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _41_has12;
-      _41_has12 = _System.Tuple12<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple13<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _42_has13;
-      _42_has13 = _System.Tuple13<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple14<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _43_has14;
-      _43_has14 = _System.Tuple14<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple15<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _44_has15;
-      _44_has15 = _System.Tuple15<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple16<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _45_has16;
-      _45_has16 = _System.Tuple16<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple17<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _46_has17;
-      _46_has17 = _System.Tuple17<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple18<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _47_has18;
-      _47_has18 = _System.Tuple18<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple19<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _48_has19;
-      _48_has19 = _System.Tuple19<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-      _System._ITuple20<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool> _49_has20;
-      _49_has20 = _System.Tuple20<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool>.create(_28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b, _28_b);
-    }
-    public static void HasArrows()
-    {
-      Func<BigInteger> _50_has0;
-      _50_has0 = ((System.Func<BigInteger>)(() => {
-        return new BigInteger(42);
-      }));
-      Func<bool, BigInteger> _51_has1;
-      _51_has1 = ((System.Func<bool, BigInteger>)((_52_x1) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, BigInteger> _53_has2;
-      _53_has2 = ((System.Func<bool, bool, BigInteger>)((_54_x1, _55_x2) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, BigInteger> _56_has3;
-      _56_has3 = ((System.Func<bool, bool, bool, BigInteger>)((_57_x1, _58_x2, _59_x3) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, BigInteger> _60_has4;
-      _60_has4 = ((System.Func<bool, bool, bool, bool, BigInteger>)((_61_x1, _62_x2, _63_x3, _64_x4) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, BigInteger> _65_has5;
-      _65_has5 = ((System.Func<bool, bool, bool, bool, bool, BigInteger>)((_66_x1, _67_x2, _68_x3, _69_x4, _70_x5) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, BigInteger> _71_has6;
-      _71_has6 = ((System.Func<bool, bool, bool, bool, bool, bool, BigInteger>)((_72_x1, _73_x2, _74_x3, _75_x4, _76_x5, _77_x6) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, bool, BigInteger> _78_has7;
-      _78_has7 = ((System.Func<bool, bool, bool, bool, bool, bool, bool, BigInteger>)((_79_x1, _80_x2, _81_x3, _82_x4, _83_x5, _84_x6, _85_x7) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, bool, bool, BigInteger> _86_has8;
-      _86_has8 = ((System.Func<bool, bool, bool, bool, bool, bool, bool, bool, BigInteger>)((_87_x1, _88_x2, _89_x3, _90_x4, _91_x5, _92_x6, _93_x7, _94_x8) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger> _95_has9;
-      _95_has9 = ((System.Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger>)((_96_x1, _97_x2, _98_x3, _99_x4, _100_x5, _101_x6, _102_x7, _103_x8, _104_x9) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger> _105_has10;
-      _105_has10 = ((System.Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger>)((_106_x1, _107_x2, _108_x3, _109_x4, _110_x5, _111_x6, _112_x7, _113_x8, _114_x9, _115_x10) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger> _116_has11;
-      _116_has11 = ((System.Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger>)((_117_x1, _118_x2, _119_x3, _120_x4, _121_x5, _122_x6, _123_x7, _124_x8, _125_x9, _126_x10, _127_x11) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger> _128_has12;
-      _128_has12 = ((System.Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger>)((_129_x1, _130_x2, _131_x3, _132_x4, _133_x5, _134_x6, _135_x7, _136_x8, _137_x9, _138_x10, _139_x11, _140_x12) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger> _141_has13;
-      _141_has13 = ((System.Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger>)((_142_x1, _143_x2, _144_x3, _145_x4, _146_x5, _147_x6, _148_x7, _149_x8, _150_x9, _151_x10, _152_x11, _153_x12, _154_x13) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger> _155_has14;
-      _155_has14 = ((System.Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger>)((_156_x1, _157_x2, _158_x3, _159_x4, _160_x5, _161_x6, _162_x7, _163_x8, _164_x9, _165_x10, _166_x11, _167_x12, _168_x13, _169_x14) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger> _170_has15;
-      _170_has15 = ((System.Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger>)((_171_x1, _172_x2, _173_x3, _174_x4, _175_x5, _176_x6, _177_x7, _178_x8, _179_x9, _180_x10, _181_x11, _182_x12, _183_x13, _184_x14, _185_x15) => {
-        return new BigInteger(42);
-      }));
-      Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger> _186_has16;
-      _186_has16 = ((System.Func<bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, BigInteger>)((_187_x1, _188_x2, _189_x3, _190_x4, _191_x5, _192_x6, _193_x7, _194_x8, _195_x9, _196_x10, _197_x11, _198_x12, _199_x13, _200_x14, _201_x15, _202_x16) => {
-        return new BigInteger(42);
-      }));
-    }
-    public static void HasArrays()
-    {
-      byte _203_n;
-      _203_n = (byte)(0);
-      bool[] _204_has1;
-      bool[] _nw0 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _204_has1 = _nw0;
-      bool[,] _205_has2;
-      bool[,] _nw1 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _205_has2 = _nw1;
-      bool[,,] _206_has3;
-      bool[,,] _nw2 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _206_has3 = _nw2;
-      bool[,,,] _207_has4;
-      bool[,,,] _nw3 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _207_has4 = _nw3;
-      bool[,,,,] _208_has5;
-      bool[,,,,] _nw4 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _208_has5 = _nw4;
-      bool[,,,,,] _209_has6;
-      bool[,,,,,] _nw5 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _209_has6 = _nw5;
-      bool[,,,,,,] _210_has7;
-      bool[,,,,,,] _nw6 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _210_has7 = _nw6;
-      bool[,,,,,,,] _211_has8;
-      bool[,,,,,,,] _nw7 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _211_has8 = _nw7;
-      bool[,,,,,,,,] _212_has9;
-      bool[,,,,,,,,] _nw8 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _212_has9 = _nw8;
-      bool[,,,,,,,,,] _213_has10;
-      bool[,,,,,,,,,] _nw9 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _213_has10 = _nw9;
-      bool[,,,,,,,,,,] _214_has11;
-      bool[,,,,,,,,,,] _nw10 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _214_has11 = _nw10;
-      bool[,,,,,,,,,,,] _215_has12;
-      bool[,,,,,,,,,,,] _nw11 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _215_has12 = _nw11;
-      bool[,,,,,,,,,,,,] _216_has13;
-      bool[,,,,,,,,,,,,] _nw12 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _216_has13 = _nw12;
-      bool[,,,,,,,,,,,,,] _217_has14;
-      bool[,,,,,,,,,,,,,] _nw13 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _217_has14 = _nw13;
-      bool[,,,,,,,,,,,,,,] _218_has15;
-      bool[,,,,,,,,,,,,,,] _nw14 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _218_has15 = _nw14;
-      bool[,,,,,,,,,,,,,,,] _219_has16;
-      bool[,,,,,,,,,,,,,,,] _nw15 = new bool[Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit"), Dafny.Helpers.ToIntChecked(_203_n, "array size exceeds memory limit")];
-      _219_has16 = _nw15;
-    }
-  }
-
-  public partial class @byte {
-    public static System.Collections.Generic.IEnumerable<byte> IntegerRange(BigInteger lo, BigInteger hi) {
-      for (var j = lo; j < hi; j++) { yield return (byte)j; }
-    }
-    private static readonly Dafny.TypeDescriptor<byte> _TYPE = new Dafny.TypeDescriptor<byte>(0);
-    public static Dafny.TypeDescriptor<byte> _TypeDescriptor() {
-      return _TYPE;
-    }
-  }
-} // end of namespace _module

@@ -66,6 +66,10 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override void EmitHeader(Program program, ConcreteSyntaxTree wr) {
+      var isPartialTranslate =
+        program.Options.SystemModuleTranslationMode == CommonOptionBag.ModuleTranslationMode.OmitAllOtherModules
+        || program.Options.DefaultModuleTranslationMode == CommonOptionBag.ModuleTranslationMode.Omit;
+      
       wr.WriteLine("// Dafny program {0} compiled into C#", program.Name);
       wr.WriteLine("// To recompile, you will need the libraries");
       wr.WriteLine("//     System.Runtime.Numerics.dll System.Collections.Immutable.dll");
@@ -73,13 +77,13 @@ namespace Microsoft.Dafny.Compilers {
       wr.WriteLine("// Optionally, you may want to include compiler switches like");
       wr.WriteLine("//     /debug /nowarn:162,164,168,183,219,436,1717,1718");
       wr.WriteLine();
-      if (program.Options.SystemModuleTranslationMode == CommonOptionBag.ModuleTranslationMode.OmitAllOtherModules) {
+      if (isPartialTranslate) {
         wr.WriteLine("#if ISDAFNYRUNTIMELIB");
       }
       wr.WriteLine("using System;");
       wr.WriteLine("using System.Numerics;");
       wr.WriteLine("using System.Collections;");
-      if (program.Options.SystemModuleTranslationMode == CommonOptionBag.ModuleTranslationMode.OmitAllOtherModules) {
+      if (isPartialTranslate) {
         wr.WriteLine("#endif");
       }
       Synthesize = ProgramHasMethodsWithAttr(program, "synthesize");
@@ -87,7 +91,7 @@ namespace Microsoft.Dafny.Compilers {
         CsharpSynthesizer.EmitImports(wr);
       }
 
-      if (program.Options.SystemModuleTranslationMode != CommonOptionBag.ModuleTranslationMode.OmitAllOtherModules) {
+      if (!isPartialTranslate) {
         EmitDafnySourceAttribute(program, wr);
       }
 
@@ -149,6 +153,9 @@ namespace Microsoft.Dafny.Compilers {
       // Instead we just make sure to guard them with "#if ISDAFNYRUNTIMELIB" when compiling the system module,
       // so they don't become duplicates when --include-runtime is used.
       // See comment at the top of DafnyRuntime.cs.
+      if (Options.DefaultModuleTranslationMode == CommonOptionBag.ModuleTranslationMode.Omit) {
+        return;
+      }
 
       if (Options.SystemModuleTranslationMode == CommonOptionBag.ModuleTranslationMode.OmitAllOtherModules) {
         wr.WriteLine("#if ISDAFNYRUNTIMELIB");

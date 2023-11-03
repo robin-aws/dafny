@@ -2,6 +2,7 @@
 // Dafny class Outcome_Fail<E> compiled into Java
 package DafnyStdLibs.Wrappers;
 
+import DafnyStdLibs.BoundedInts.*;
 
 @SuppressWarnings({"unchecked", "deprecation"})
 public class Outcome_Fail<E> extends Outcome<E> {

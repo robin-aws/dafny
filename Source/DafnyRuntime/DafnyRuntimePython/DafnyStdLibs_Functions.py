@@ -6,6 +6,7 @@ from itertools import count
 import module_
 import _dafny
 import System_
+import DafnyStdLibs_BoundedInts
 
 # Module: DafnyStdLibs_Functions
 

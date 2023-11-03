@@ -1,4 +1,299 @@
 // Dafny program the_program compiled into JavaScript
+let DafnyStdLibs_BoundedInts = (function() {
+  let $module = {};
+
+  $module.__default = class __default {
+    constructor () {
+      this._tname = "DafnyStdLibs.BoundedInts._default";
+    }
+    _parentTraits() {
+      return [];
+    }
+    static get TWO__TO__THE__8() {
+      return new BigNumber(256);
+    };
+    static get TWO__TO__THE__16() {
+      return new BigNumber(65536);
+    };
+    static get TWO__TO__THE__32() {
+      return new BigNumber(4294967296);
+    };
+    static get TWO__TO__THE__64() {
+      return new BigNumber("18446744073709551616");
+    };
+    static get TWO__TO__THE__128() {
+      return new BigNumber("340282366920938463463374607431768211456");
+    };
+    static get TWO__TO__THE__7() {
+      return new BigNumber(128);
+    };
+    static get TWO__TO__THE__15() {
+      return new BigNumber(32768);
+    };
+    static get TWO__TO__THE__31() {
+      return new BigNumber(2147483648);
+    };
+    static get TWO__TO__THE__63() {
+      return new BigNumber("9223372036854775808");
+    };
+    static get TWO__TO__THE__127() {
+      return new BigNumber("170141183460469231731687303715884105728");
+    };
+    static get TWO__TO__THE__0() {
+      return _dafny.ONE;
+    };
+    static get TWO__TO__THE__1() {
+      return new BigNumber(2);
+    };
+    static get TWO__TO__THE__2() {
+      return new BigNumber(4);
+    };
+    static get TWO__TO__THE__4() {
+      return new BigNumber(16);
+    };
+    static get TWO__TO__THE__5() {
+      return new BigNumber(32);
+    };
+    static get TWO__TO__THE__24() {
+      return new BigNumber(16777216);
+    };
+    static get TWO__TO__THE__40() {
+      return new BigNumber(1099511627776);
+    };
+    static get TWO__TO__THE__48() {
+      return new BigNumber(281474976710656);
+    };
+    static get TWO__TO__THE__56() {
+      return new BigNumber("72057594037927936");
+    };
+    static get TWO__TO__THE__256() {
+      return new BigNumber("115792089237316195423570985008687907853269984665640564039457584007913129639936");
+    };
+    static get TWO__TO__THE__512() {
+      return new BigNumber("13407807929942597099574024998205846127479365820592393377723561443721764030073546976801874298166903427690031858186486050853753882811946569946433649006084096");
+    };
+  };
+
+  $module.uint8 = class uint8 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static *IntegerRange(lo, hi) {
+      while (lo.isLessThan(hi)) {
+        yield lo.toNumber();
+        lo = lo.plus(1);
+      }
+    }
+    static get Default() {
+      return 0;
+    }
+  };
+
+  $module.uint16 = class uint16 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static *IntegerRange(lo, hi) {
+      while (lo.isLessThan(hi)) {
+        yield lo.toNumber();
+        lo = lo.plus(1);
+      }
+    }
+    static get Default() {
+      return 0;
+    }
+  };
+
+  $module.uint32 = class uint32 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static *IntegerRange(lo, hi) {
+      while (lo.isLessThan(hi)) {
+        yield lo.toNumber();
+        lo = lo.plus(1);
+      }
+    }
+    static get Default() {
+      return 0;
+    }
+  };
+
+  $module.uint64 = class uint64 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static get Default() {
+      return _dafny.ZERO;
+    }
+  };
+
+  $module.uint128 = class uint128 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static get Default() {
+      return _dafny.ZERO;
+    }
+  };
+
+  $module.int8 = class int8 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static *IntegerRange(lo, hi) {
+      while (lo.isLessThan(hi)) {
+        yield lo.toNumber();
+        lo = lo.plus(1);
+      }
+    }
+    static get Default() {
+      return 0;
+    }
+  };
+
+  $module.int16 = class int16 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static *IntegerRange(lo, hi) {
+      while (lo.isLessThan(hi)) {
+        yield lo.toNumber();
+        lo = lo.plus(1);
+      }
+    }
+    static get Default() {
+      return 0;
+    }
+  };
+
+  $module.int32 = class int32 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static *IntegerRange(lo, hi) {
+      while (lo.isLessThan(hi)) {
+        yield lo.toNumber();
+        lo = lo.plus(1);
+      }
+    }
+    static get Default() {
+      return 0;
+    }
+  };
+
+  $module.int64 = class int64 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static get Default() {
+      return _dafny.ZERO;
+    }
+  };
+
+  $module.int128 = class int128 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static get Default() {
+      return _dafny.ZERO;
+    }
+  };
+
+  $module.nat8 = class nat8 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static *IntegerRange(lo, hi) {
+      while (lo.isLessThan(hi)) {
+        yield lo.toNumber();
+        lo = lo.plus(1);
+      }
+    }
+    static get Default() {
+      return 0;
+    }
+  };
+
+  $module.nat16 = class nat16 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static *IntegerRange(lo, hi) {
+      while (lo.isLessThan(hi)) {
+        yield lo.toNumber();
+        lo = lo.plus(1);
+      }
+    }
+    static get Default() {
+      return 0;
+    }
+  };
+
+  $module.nat32 = class nat32 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static *IntegerRange(lo, hi) {
+      while (lo.isLessThan(hi)) {
+        yield lo.toNumber();
+        lo = lo.plus(1);
+      }
+    }
+    static get Default() {
+      return 0;
+    }
+  };
+
+  $module.nat64 = class nat64 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static get Default() {
+      return _dafny.ZERO;
+    }
+  };
+
+  $module.nat128 = class nat128 {
+    constructor () {
+    }
+    _parentTraits() {
+      return [];
+    }
+    static get Default() {
+      return _dafny.ZERO;
+    }
+  };
+  return $module;
+})(); // end of module DafnyStdLibs_BoundedInts
 let DafnyStdLibs_Functions = (function() {
   let $module = {};
 

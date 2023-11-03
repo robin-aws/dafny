@@ -2,6 +2,7 @@
 // Dafny class Option_Some<T> compiled into Java
 package DafnyStdLibs.Wrappers;
 
+import DafnyStdLibs.BoundedInts.*;
 
 @SuppressWarnings({"unchecked", "deprecation"})
 public class Option_Some<T> extends Option<T> {

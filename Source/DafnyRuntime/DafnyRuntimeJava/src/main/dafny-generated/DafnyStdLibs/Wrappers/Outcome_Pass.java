@@ -2,6 +2,7 @@
 // Dafny class Outcome_Pass<E> compiled into Java
 package DafnyStdLibs.Wrappers;
 
+import DafnyStdLibs.BoundedInts.*;
 
 @SuppressWarnings({"unchecked", "deprecation"})
 public class Outcome_Pass<E> extends Outcome<E> {

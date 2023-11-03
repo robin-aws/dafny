@@ -312,11 +312,11 @@ namespace Microsoft.Dafny.Compilers {
 
     protected override void EmitBuiltInDecls(SystemModuleManager systemModuleManager, ConcreteSyntaxTree wr) {
       switch (Options.SystemModuleTranslationMode) {
-        case CommonOptionBag.SystemModuleMode.Omit: {
+        case CommonOptionBag.ModuleTranslationMode.Omit: {
             CheckCommonSytemModuleLimits(systemModuleManager);
             return;
           }
-        case CommonOptionBag.SystemModuleMode.OmitAllOtherModules: {
+        case CommonOptionBag.ModuleTranslationMode.OmitAllOtherModules: {
             CheckSystemModulePopulatedToCommonLimits(systemModuleManager);
             break;
           }

@@ -11,9 +11,9 @@ GENERATED_DAFNY_MODULE_TARGET=src/main/dafny-generated/dafny
 GENERATED_STDLIBS_SOURCE=../obj/DafnyStandardLibraries-java/DafnyStdLibs
 GENERATED_STDLIBS_TARGET=src/main/dafny-generated/DafnyStdLibs
 
-all: check-system-module check-stdlibs test
+test: check-system-module check-stdlibs gradle-tests
 
-test:
+gradle-tests:
 	./gradlew test
 
 # TODO: Add --optimize-erasable-datatype-wrapper:false elsewhere too
@@ -31,7 +31,7 @@ update-system-module: build-system-module
 	cp -r $(GENERATED_DAFNY_MODULE_SOURCE) $(GENERATED_DAFNY_MODULE_TARGET)
 
 build-stdlibs:
-	$(DAFNY) translate java --no-verify --use-basename-for-filename --optimize-erasable-datatype-wrapper:false ../../DafnyStandardLibraries/src/dfyconfig.toml --output:../obj/DafnyStandardLibraries
+	$(DAFNY) translate java --no-verify --use-basename-for-filename --optimize-erasable-datatype-wrapper:false --default-module:Omit ../../DafnyStandardLibraries/src/dfyconfig.toml --output:../obj/DafnyStandardLibraries
 
 check-stdlibs: build-stdlibs
 	diff $(GENERATED_STDLIBS_SOURCE) $(GENERATED_STDLIBS_TARGET)

@@ -8,9 +8,9 @@ GENERATED_SYSTEM_MODULE_TARGET=System_/System_.go
 GENERATED_STDLIBS_SOURCE=../obj/DafnyStandardLibraries-go/src
 GENERATED_STDLIBS_TARGET=.
 
-all: check-system-module check-stdlibs test
+test: check-system-module check-stdlibs go-tests
 
-test:
+go-tests:
 	cd dafny &&	GO111MODULE=auto go test
 
 build-system-module:
@@ -23,8 +23,7 @@ update-system-module: build-system-module
 	cp $(GENERATED_SYSTEM_MODULE_SOURCE) $(GENERATED_SYSTEM_MODULE_TARGET)
 
 build-stdlibs:
-	$(DAFNY) translate go --no-verify --use-basename-for-filename --optimize-erasable-datatype-wrapper:false ../../DafnyStandardLibraries/src/dfyconfig.toml --output:../obj/DafnyStandardLibraries
-	rm $(GENERATED_STDLIBS_SOURCE)/DafnyStandardLibraries.go
+	$(DAFNY) translate go --no-verify --use-basename-for-filename --optimize-erasable-datatype-wrapper:false  --default-module:Omit ../../DafnyStandardLibraries/src/dfyconfig.toml --output:../obj/DafnyStandardLibraries
 
 check-stdlibs: build-stdlibs
 	diff -r -x Makefile -x System_ -x dafny $(GENERATED_STDLIBS_SOURCE) $(GENERATED_STDLIBS_TARGET)

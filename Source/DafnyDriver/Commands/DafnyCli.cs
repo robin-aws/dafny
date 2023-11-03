@@ -488,7 +488,10 @@ public static class DafnyCli {
     // which is not handled well.
     if (options.Get(CommonOptionBag.UseStandardLibraries)) {
       options.CliRootSourceUris.Add(StandardLibrariesDooUri);
-      dafnyFiles.Add(new DafnyFile(options, StandardLibrariesDooUri));
+      var stdlibDooFile = new DafnyFile(options, StandardLibrariesDooUri);
+      // Precompiled into the runtimes
+      stdlibDooFile.IsPrecompiled = true;
+      dafnyFiles.Add(stdlibDooFile);
     }
 
     return ExitValue.SUCCESS;

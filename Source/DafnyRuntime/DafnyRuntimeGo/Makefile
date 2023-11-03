@@ -24,6 +24,7 @@ update-system-module: build-system-module
 
 build-stdlibs:
 	$(DAFNY) translate go --no-verify --use-basename-for-filename --optimize-erasable-datatype-wrapper:false  --default-module:Omit ../../DafnyStandardLibraries/src/dfyconfig.toml --output:../obj/DafnyStandardLibraries
+	rm $(GENERATED_STDLIBS_SOURCE)/DafnyStandardLibraries.go
 
 check-stdlibs: build-stdlibs
 	diff -r -x Makefile -x System_ -x dafny $(GENERATED_STDLIBS_SOURCE) $(GENERATED_STDLIBS_TARGET)

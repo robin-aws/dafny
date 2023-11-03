@@ -236,15 +236,20 @@ May produce spurious warnings.") {
     IsHidden = true
   };
 
-  public enum SystemModuleMode {
+  public enum ModuleTranslationMode {
     Include,
     Omit,
     // Used to pre-compile the System module into the runtimes
     OmitAllOtherModules
   }
 
-  public static readonly Option<SystemModuleMode> SystemModule = new("--system-module", () => SystemModuleMode.Omit,
-    "How to handle the built-in _System module.") {
+  public static readonly Option<ModuleTranslationMode> SystemModule = new("--system-module", () => ModuleTranslationMode.Omit,
+    "How to translate the built-in _System module.") {
+    IsHidden = true
+  };
+  
+  public static readonly Option<ModuleTranslationMode> DefaultModule = new("--default-module", () => ModuleTranslationMode.Include,
+    "How to translate the default module.") {
     IsHidden = true
   };
 
@@ -400,6 +405,7 @@ NoGhost - disable printing of functions, ghost methods, and proof
     DafnyOptions.RegisterLegacyBinding(IncludeRuntimeOption, (options, value) => { options.IncludeRuntime = value; });
     DafnyOptions.RegisterLegacyBinding(InternalIncludeRuntimeOptionForExecution, (options, value) => { options.IncludeRuntime = value; });
     DafnyOptions.RegisterLegacyBinding(SystemModule, (options, value) => { options.SystemModuleTranslationMode = value; });
+    DafnyOptions.RegisterLegacyBinding(DefaultModule, (options, value) => { options.DefaultModuleTranslationMode = value; });
     DafnyOptions.RegisterLegacyBinding(UseBaseFileName, (o, f) => o.UseBaseNameForFileName = f);
     DafnyOptions.RegisterLegacyBinding(UseJavadocLikeDocstringRewriterOption,
       (options, value) => { options.UseJavadocLikeDocstringRewriter = value; });
@@ -517,7 +523,8 @@ NoGhost - disable printing of functions, ghost methods, and proof
       UseStandardLibraries,
       OptimizeErasableDatatypeWrapper,
       AddCompileSuffix,
-      SystemModule
+      SystemModule,
+      DefaultModule
     );
   }
 

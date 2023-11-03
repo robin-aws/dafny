@@ -13,17 +13,21 @@ public static class ShouldCompileOrVerify {
     }
 
     if (module.FullName == "_System") {
-      return program.Options.SystemModuleTranslationMode != CommonOptionBag.SystemModuleMode.Omit;
+      return program.Options.SystemModuleTranslationMode != CommonOptionBag.ModuleTranslationMode.Omit;
     }
-    if (program.Options.SystemModuleTranslationMode == CommonOptionBag.SystemModuleMode.OmitAllOtherModules) {
+    if (program.Options.SystemModuleTranslationMode == CommonOptionBag.ModuleTranslationMode.OmitAllOtherModules) {
       return false;
     }
 
     if (module is DefaultModuleDefinition) {
       // If things from precompiled files live in the default module, that can cause downstream compilation issues:
       // https://github.com/dafny-lang/dafny/issues/4009
-      return true;
+      return program.Options.DefaultModuleTranslationMode != CommonOptionBag.ModuleTranslationMode.Omit;
     }
+    if (program.Options.DefaultModuleTranslationMode == CommonOptionBag.ModuleTranslationMode.OmitAllOtherModules) {
+      return false;
+    }
+    
     return program.UrisToCompile.Contains(module.Tok.Uri);
   }
 

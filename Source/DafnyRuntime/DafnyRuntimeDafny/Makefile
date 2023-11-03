@@ -8,7 +8,7 @@ SOURCES=$(shell find $(SOURCE_DIR) -name '*.dfy')
 GENERATED_CODE_GO_SOURCE=src/dafnyRuntimeGo-go/src/dafny/dafny.go
 GENERATED_CODE_GO_TARGET=../DafnyRuntimeGo/dafny/dafnyFromDafny.go
 
-all: test check-format
+test: verify check-go check-format
 
 verify:
 	$(DAFNY) verify $(SOURCES)
@@ -21,8 +21,6 @@ check-go: build-go
 
 update-go: build-go
 	cp $(GENERATED_CODE_GO_SOURCE) $(GENERATED_CODE_GO_TARGET)
-
-test: check-go
 
 format:
 	$(DAFNY) format .

@@ -11,7 +11,7 @@ GENERATED_DAFNY_MODULE_TARGET=src/main/dafny-generated/dafny
 GENERATED_STDLIBS_SOURCE=../obj/DafnyStandardLibraries-java/DafnyStdLibs
 GENERATED_STDLIBS_TARGET=src/main/dafny-generated/DafnyStdLibs
 
-all: check-system-module test
+all: check-system-module check-stdlibs test
 
 test:
 	./gradlew test

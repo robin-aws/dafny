@@ -8,7 +8,7 @@ GENERATED_SYSTEM_MODULE_TARGET=DafnyRuntimeSystemModule.js
 GENERATED_STDLIBS_SOURCE=obj/DafnyStandardLibraries.js
 GENERATED_STDLIBS_TARGET=DafnyStandardLibraries.js
 
-all: check-system-module
+all: check-system-module check-stdlibs
 
 build-system-module:
 	$(DAFNY) translate js --no-verify --use-basename-for-filename --system-module:OmitAllOtherModules ../systemModulePopulator.dfy --output:../obj/systemModulePopulator

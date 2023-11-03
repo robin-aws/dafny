@@ -8,7 +8,7 @@ GENERATED_SYSTEM_MODULE_TARGET=DafnyRuntimeSystemModule.cs
 GENERATED_STDLIBS_SOURCE=obj/DafnyStandardLibraries.cs
 GENERATED_STDLIBS_TARGET=DafnyStandardLibraries.cs
 
-all: check-system-module
+all: check-system-module check-stdlibs
 
 build-system-module:
 	$(DAFNY) translate cs --no-verify --use-basename-for-filename --optimize-erasable-datatype-wrapper:false --system-module:OmitAllOtherModules systemModulePopulator.dfy --output:obj/systemModulePopulator

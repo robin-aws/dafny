@@ -8,7 +8,7 @@ GENERATED_SYSTEM_MODULE_TARGET=System_/System_.go
 GENERATED_STDLIBS_SOURCE=../obj/DafnyStandardLibraries-go/src
 GENERATED_STDLIBS_TARGET=.
 
-all: check-system-module test
+all: check-system-module check-stdlibs test
 
 test:
 	cd dafny &&	GO111MODULE=auto go test

@@ -27,7 +27,8 @@ jobs:
           DafnyRuntime/DafnyRuntimeGo,
           DafnyRuntime/DafnyRuntimeJava,
           DafnyRuntime/DafnyRuntimePython,
-          DafnyRuntime/DafnyRuntimeJs
+          DafnyRuntime/DafnyRuntimeJs,
+          DafnyStandardLibraries
         ]
       fail-fast: false
     steps:
@@ -44,6 +45,7 @@ jobs:
         run: dotnet build Source/Dafny.sln
       - name: Get Z3
         run: make z3-ubuntu
+      - run: npm install bignumber.js
       - name: Test ${{ matrix.project }}
         run: |
           cd ./Source/${{ matrix.project }}

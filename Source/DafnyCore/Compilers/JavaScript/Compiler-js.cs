@@ -2251,14 +2251,14 @@ namespace Microsoft.Dafny.Compilers {
             callString = "dividedBy";
           } else if (resultType.IsIntegerType || AsNativeType(resultType) == null) {
             staticCallString = "_dafny.EuclideanDivision";
-          } else if (AsNativeType(resultType).LowerBound < BigInteger.Zero) {
+          } else if (AsNativeType(resultType)?.LowerBound < BigInteger.Zero) {
             staticCallString = "_dafny.EuclideanDivisionNumber";
           } else {
             opString = "/";
           }
           break;
         case BinaryExpr.ResolvedOpcode.Mod:
-          if (AsNativeType(resultType).LowerBound < BigInteger.Zero) {
+          if (AsNativeType(resultType)?.LowerBound < BigInteger.Zero) {
             staticCallString = "_dafny.EuclideanModuloNumber";
           } else {
             opString = "%";

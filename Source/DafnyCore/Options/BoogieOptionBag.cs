@@ -135,8 +135,7 @@ public static class BoogieOptionBag {
     DooFile.RegisterLibraryChecks(
       new Dictionary<Option, DooFile.OptionCheck> {
         { BoogieArguments, DooFile.CheckOptionMatches },
-        { BoogieFilter, DooFile.CheckOptionMatches },
-        { NoVerify, DooFile.CheckOptionMatches },
+        { NoVerify, DooFile.CheckOptionLibraryImpliesLocal },
       }
     );
     DooFile.RegisterNoChecksNeeded(
@@ -149,7 +148,8 @@ public static class BoogieOptionBag {
       SolverOptionHelp,
       SolverPath,
       SolverPlugin,
-      SolverResourceLimit
+      SolverResourceLimit,
+      BoogieFilter
     );
   }
 

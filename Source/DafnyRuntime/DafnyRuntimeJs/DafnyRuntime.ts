@@ -1045,7 +1045,7 @@ export module _dafny {
     } else {
       while (lo < hi) {
         yield lo;
-        lo = lo + 1;
+        lo = lo + 1n;
       }
     }
   }

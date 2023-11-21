@@ -64,7 +64,7 @@
       <LinkBase>DafnyStandardLibraries_java</LinkBase>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\DafnyStandardLibraries\src\**\*.js">
+    <EmbeddedResource Include="..\DafnyStandardLibraries\src\**\*.ts">
       <LinkBase>DafnyStandardLibraries_js</LinkBase>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>

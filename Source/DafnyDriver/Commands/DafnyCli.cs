@@ -488,12 +488,12 @@ public static class DafnyCli {
     // which is not handled well.
     if (options.Get(CommonOptionBag.UseStandardLibraries)) {
       var reporter = new ConsoleErrorReporter(options);
-      // if (options.CompilerName is null or "cs" or "java" or "go" or "py" or "js") {
-      //   var targetName = options.CompilerName ?? "notarget";
-      //   var stdlibDooUri = new Uri($"{DafnyMain.StandardLibrariesDooUriBase}-{targetName}.doo");
-      //   options.CliRootSourceUris.Add(stdlibDooUri);
-      //   dafnyFiles.Add(DafnyFile.CreateAndValidate(reporter, OnDiskFileSystem.Instance, options, stdlibDooUri, Token.Cli));
-      // }
+      if (options.CompilerName is null or "cs" or "java" or "go" or "py" or "js") {
+        var targetName = options.CompilerName ?? "notarget";
+        var stdlibDooUri = new Uri($"{DafnyMain.StandardLibrariesDooUriBase}-{targetName}.doo");
+        options.CliRootSourceUris.Add(stdlibDooUri);
+        dafnyFiles.Add(DafnyFile.CreateAndValidate(reporter, OnDiskFileSystem.Instance, options, stdlibDooUri, Token.Cli));
+      }
 
       options.CliRootSourceUris.Add(DafnyMain.StandardLibrariesDooUri);
       dafnyFiles.Add(DafnyFile.CreateAndValidate(reporter, OnDiskFileSystem.Instance, options, DafnyMain.StandardLibrariesDooUri, Token.Cli));

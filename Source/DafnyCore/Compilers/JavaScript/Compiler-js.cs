@@ -48,9 +48,9 @@ namespace Microsoft.Dafny.Compilers {
       if (Options.IncludeRuntime) {
         EmitRuntimeSource("DafnyRuntimeJs", wr, false);
       }
-      // if (Options.Get(CommonOptionBag.UseStandardLibraries)) {
-      //   EmitRuntimeSource("DafnyStandardLibraries_js", wr, false);
-      // }
+      if (Options.Get(CommonOptionBag.UseStandardLibraries)) {
+        EmitRuntimeSource("DafnyStandardLibraries_js", wr, false);
+      }
     }
 
     public override void EmitCallToMain(Method mainMethod, string baseName, ConcreteSyntaxTree wr) {
@@ -1231,8 +1231,6 @@ namespace Microsoft.Dafny.Compilers {
       if (goingUp) {
         if (endVarName == null) {
           wr.Write("true");
-        } else if (nativeType == null) {
-          wr.Write($"{loopIndex.CompileName}.isLessThan({endVarName})");
         } else {
           wr.Write($"{loopIndex.CompileName} < {endVarName}");
         }
@@ -1244,8 +1242,6 @@ namespace Microsoft.Dafny.Compilers {
       } else {
         if (endVarName == null) {
           wr.Write("true");
-        } else if (nativeType == null) {
-          wr.Write($"{endVarName}.isLessThan({loopIndex.CompileName})");
         } else {
           wr.Write($"{endVarName} < {loopIndex.CompileName}");
         }

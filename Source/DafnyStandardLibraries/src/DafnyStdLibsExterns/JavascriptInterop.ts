@@ -74,7 +74,7 @@ export module JavascriptInterop {
   }
 
   export function ToSeq(o) {
-    return new _dafny.Seq(o);
+    return new _dafny.Seq(...o);
   }
 
   export function FromSeq(o) {

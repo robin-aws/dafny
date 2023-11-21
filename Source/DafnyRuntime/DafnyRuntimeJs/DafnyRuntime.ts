@@ -1043,9 +1043,9 @@ export module _dafny {
         lo = lo.plus(1);
       }
     } else {
-      while (lo.isLessThan(hi)) {
+      while (lo < hi) {
         yield lo;
-        lo = lo.plus(1);
+        lo = lo + 1;
       }
     }
   }

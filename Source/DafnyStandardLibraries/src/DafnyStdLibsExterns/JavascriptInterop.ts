@@ -12,7 +12,7 @@ export module JavascriptInterop {
   // TODO: Should be partial functions instead
 
   export function AsInt(o) {
-    return BigInt(o);
+    return BigInt(o ? o : -1);
   }
 
   export function FromInt(o) {
@@ -26,11 +26,15 @@ export module JavascriptInterop {
   }
 
   export function ToString(o) {
-    return _dafny.Seq.UnicodeFromString(o);
+    return o;
+    // for --unicode-char
+    // return _dafny.Seq.UnicodeFromString(o);
   }
 
   export function FromString(o) {
-    return o.toVerbatimString(false);
+    return o;
+    // for --unicode-char
+    // return o.toVerbatimString(false);
   }
 
   // Objects

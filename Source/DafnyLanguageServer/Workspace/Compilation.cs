@@ -130,13 +130,13 @@ public class Compilation : IDisposable {
     }
 
     if (Options.Get(CommonOptionBag.UseStandardLibraries)) {
-      // if (Options.CompilerName is null or "cs" or "java" or "go" or "py" or "js") {
-      //   var targetName = Options.CompilerName ?? "notarget";
-      //   var stdlibDooUri = new Uri($"{DafnyMain.StandardLibrariesDooUriBase}-{targetName}.doo");
-      //   // TODO: bug fix, not hack
-      //   // Options.CliRootSourceUris.Add(stdlibDooUri);
-      //   result.Add(DafnyFile.CreateAndValidate(errorReporter, OnDiskFileSystem.Instance, Options, stdlibDooUri, Project.StartingToken));
-      // }
+      if (Options.CompilerName is null or "cs" or "java" or "go" or "py" or "js") {
+        var targetName = Options.CompilerName ?? "notarget";
+        var stdlibDooUri = new Uri($"{DafnyMain.StandardLibrariesDooUriBase}-{targetName}.doo");
+        // TODO: bug fix, not hack
+        Options.CliRootSourceUris.Add(stdlibDooUri);
+        result.Add(DafnyFile.CreateAndValidate(errorReporter, OnDiskFileSystem.Instance, Options, stdlibDooUri, Project.StartingToken));
+      }
 
       result.Add(DafnyFile.CreateAndValidate(errorReporter, fileSystem, Options, DafnyMain.StandardLibrariesDooUri, Project.StartingToken));
       result.Add(DafnyFile.CreateAndValidate(errorReporter, fileSystem, Options, DafnyMain.StandardLibrariesArithmeticDooUri, Project.StartingToken));

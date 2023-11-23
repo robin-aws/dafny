@@ -8,17 +8,15 @@ export module JavascriptInterop {
   }
   
   // Numbers
+  
+  // TODO: Should be partial functions instead
 
   export function AsInt(o) {
-    return typeof o == "number";
+    return BigInt(o);
   }
 
   export function FromInt(o) {
-    return typeof o == "number" ? o : 0;
-  }
-
-  export function IsUndefined(o) {
-    return typeof o == "undefined";
+    return o;
   }
 
   // Strings
@@ -28,7 +26,7 @@ export module JavascriptInterop {
   }
 
   export function ToString(o) {
-    return _dafny.UnicodeFromString(o);
+    return _dafny.Seq.UnicodeFromString(o);
   }
 
   export function FromString(o) {
@@ -40,21 +38,32 @@ export module JavascriptInterop {
   export function AsObject(o) {
     return typeof o == "object" ? o : null;
   }
-
+  
+  export function GetProperties(o) {
+    return Object.keys(o).map(name => ToString(name));
+  }
+  
   export function HasProperty(o, m) {
-    return Object.hasOwnProperty(o, m);
+    const name = FromString(m);
+    return name in o;
   }
 
   export function GetProperty(o, m) {
-    return o[m];
+    const name = FromString(m);
+    return o[name];
   }
 
   export function GetOptProperty(o, m) {
-    return o[m];
+    if (o == null) {
+      return undefined;
+    }
+    const name = FromString(m);
+    return o[name];
   }
 
   export function SetProperty(o, m, v) {
-    o[m] = v;
+    const name = FromString(m);
+    o[name] = v;
   }
 
   // Arrays

@@ -21,8 +21,10 @@ export module _dafny {
       return a == b;
     } else if (a._tname !== undefined || (Array.isArray(a) && a.constructor.name == "Array")) {
       return a === b;  // pointer equality
+    } else if (a.$tag !== undefined || a instanceof _dafny.CodePoint || a instanceof _dafny.Seq || a instanceof _dafny.Tuple) {
+      return a.equals(b);  // value-type equality for known types
     } else {
-      return a.equals(b);  // value-type equality
+      return a === b;  // pointer equality
     }
   }
   export function toString(a) {

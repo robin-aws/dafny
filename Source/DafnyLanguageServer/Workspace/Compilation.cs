@@ -134,7 +134,7 @@ public class Compilation : IDisposable {
         var targetName = Options.CompilerName ?? "notarget";
         var stdlibDooUri = new Uri($"{DafnyMain.StandardLibrariesDooUriBase}-{targetName}.doo");
         // TODO: bug fix, not hack
-        Options.CliRootSourceUris.Add(stdlibDooUri);
+        // Options.CliRootSourceUris.Add(stdlibDooUri);
         result.Add(DafnyFile.CreateAndValidate(errorReporter, OnDiskFileSystem.Instance, Options, stdlibDooUri, Project.StartingToken));
       }
 

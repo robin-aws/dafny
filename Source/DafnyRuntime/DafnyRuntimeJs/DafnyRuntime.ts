@@ -24,7 +24,7 @@ export module _dafny {
     } else if (a.$tag !== undefined || a instanceof _dafny.CodePoint || a instanceof _dafny.Seq || a instanceof _dafny.Tuple) {
       return a.equals(b);  // value-type equality for known types
     } else {
-      return a === b;  // pointer equality
+      return a == b;  // equality
     }
   }
   export function toString(a) {

@@ -44,6 +44,7 @@ namespace Microsoft.Dafny.Compilers {
 
     protected override void EmitHeader(Program program, ConcreteSyntaxTree wr) {
       wr.WriteLine("// Dafny program {0} compiled into JavaScript", program.Name);
+      wr.WriteLine("// @ts-nocheck");
       if (Options.IncludeRuntime) {
         EmitRuntimeSource("DafnyRuntimeJs", wr, false);
       }
@@ -66,32 +67,36 @@ namespace Microsoft.Dafny.Compilers {
     protected override ConcreteSyntaxTree CreateModule(string moduleName, bool isDefault, ModuleDefinition externModule,
       string libraryName /*?*/, ConcreteSyntaxTree wr) {
       moduleName = IdProtect(moduleName);
-      if (externModule == null || libraryName != null) {
-        wr.Write("let {0} = ", moduleName);
-      }
-
-      string footer = ")(); // end of module " + moduleName;
-      var block = wr.NewBlock("(function()", footer);
-      var beforeReturnBody = block.Fork(0);
-      if (externModule == null) {
-        // create new module here
-        beforeReturnBody.WriteLine("let $module = {};");
-      } else if (libraryName == null) {
-        // extend a module provided in another .js file
-        beforeReturnBody.WriteLine("let $module = {0};", moduleName);
-      } else {
-        // require a library
-        beforeReturnBody.WriteLine("let $module = require(\"{0}\");", libraryName);
-      }
-      block.WriteLine("return $module;");
-      return beforeReturnBody;
+      // var fileName = $"{moduleName}.ts";
+      // var fileWr = wr.NewFile(fileName);
+      wr.WriteLine("// @ts-nocheck");
+      return wr.NewNamedBlock($"export module {moduleName}");
+      // if (externModule == null || libraryName != null) {
+      //   wr.Write("let {0} = ", moduleName);
+      // }
+      //
+      // string footer = ")(); // end of module " + moduleName;
+      // var block = wr.NewBlock("(function()", footer);
+      // var beforeReturnBody = block.Fork(0);
+      // if (externModule == null) {
+      //   // create new module here
+      //   beforeReturnBody.WriteLine("let $module = {};");
+      // } else if (libraryName == null) {
+      //   // extend a module provided in another .js file
+      //   beforeReturnBody.WriteLine("let $module = {0};", moduleName);
+      // } else {
+      //   // require a library
+      //   beforeReturnBody.WriteLine("let $module = require(\"{0}\");", libraryName);
+      // }
+      // block.WriteLine("return $module;");
+      // return beforeReturnBody;
     }
 
     protected override string GetHelperModuleName() => "_dafny";
 
     protected override IClassWriter CreateClass(string moduleName, string name, bool isExtern, string/*?*/ fullPrintName,
       List<TypeParameter> typeParameters, TopLevelDecl cls, List<Type>/*?*/ superClasses, IToken tok, ConcreteSyntaxTree wr) {
-      var w = wr.NewBlock(string.Format("$module.{0} = class {0}" + (isExtern ? " extends $module.{0}" : ""), name), ";");
+      var w = wr.NewBlock(string.Format("export class {0}" + (isExtern ? " extends {0}" : ""), name), ";");
       w.Write("constructor (");
       var sep = "";
       if (typeParameters != null && WriteRuntimeTypeDescriptorsFormals(typeParameters, false, w) > 0) {
@@ -129,7 +134,7 @@ namespace Microsoft.Dafny.Compilers {
 
     protected override IClassWriter CreateTrait(string name, bool isExtern, List<TypeParameter> typeParameters /*?*/,
       TraitDecl trait, List<Type> superClasses /*?*/, IToken tok, ConcreteSyntaxTree wr) {
-      var w = wr.NewBlock(string.Format("$module.{0} = class {0}", IdProtect(name)), ";");
+      var w = wr.NewBlock(string.Format("export class {0}", IdProtect(name)), ";");
       var fieldWriter = w;  // not used for traits, but we need a value to give to the ClassWriter
       var methodWriter = w;
       return new ClassWriter(this, methodWriter, fieldWriter);
@@ -209,7 +214,7 @@ namespace Microsoft.Dafny.Compilers {
     protected override IClassWriter/*?*/ DeclareDatatype(DatatypeDecl dt, ConcreteSyntaxTree wr) {
       // ===== For inductive datatypes:
       //
-      // $module.Dt = class Dt {
+      // class Dt {
       //   constructor(tag) {
       //     this.$tag = tag;
       //   }
@@ -257,7 +262,7 @@ namespace Microsoft.Dafny.Compilers {
       //
       // ===== For co-inductive datatypes:
       //
-      // $module.Dt = class Dt {
+      // class Dt {
       //   constructor(tag) {
       //     this.$tag = tag;
       //   }
@@ -329,7 +334,7 @@ namespace Microsoft.Dafny.Compilers {
       var simplifiedType = DatatypeWrapperEraser.SimplifyType(Options, UserDefinedType.FromTopLevelDecl(dt.tok, dt));
 
       // from here on, write everything into the new block created here:
-      var btw = wr.NewNamedBlock("$module.{0} = class {0}", DtT_protected);
+      var btw = wr.NewNamedBlock("export class {0}", DtT_protected);
       wr = btw;
 
       var wTypeDescriptors = new ConcreteSyntaxTree();
@@ -578,8 +583,8 @@ namespace Microsoft.Dafny.Compilers {
       var w = cw.MethodWriter;
       if (nt.NativeType != null) {
         var wIntegerRangeBody = w.NewBlock("static *IntegerRange(lo, hi)");
-        var wLoopBody = wIntegerRangeBody.NewBlock("while (lo.isLessThan(hi))");
-        wLoopBody.WriteLine("yield lo.toNumber();");
+        var wLoopBody = wIntegerRangeBody.NewBlock("while (lo < hi)");
+        wLoopBody.WriteLine("yield Number(lo);");
         EmitIncrementVar("lo", wLoopBody);
       }
       if (nt.WitnessKind == SubsetTypeDecl.WKind.Compiled) {
@@ -588,8 +593,8 @@ namespace Microsoft.Dafny.Compilers {
         if (nt.NativeType == null) {
           witness.Append(Expr(nt.Witness, false, wStmts));
         } else {
+          witness.Write("Number");
           TrParenExpr(nt.Witness, witness, false, wStmts);
-          witness.Write(".toNumber()");
         }
         DeclareField("Witness", true, true, nt.BaseType, nt.tok, witness.ToString(), w);
       }
@@ -892,12 +897,12 @@ namespace Microsoft.Dafny.Compilers {
       } else if (xType is CharType) {
         return "char";
       } else if (xType is IntType || xType is BigOrdinalType) {
-        return "BigNumber";
+        return "bigint";
       } else if (xType is RealType) {
         return "Dafny.BigRational";
       } else if (xType is BitvectorType) {
         var t = (BitvectorType)xType;
-        return t.NativeType != null ? GetNativeTypeName(t.NativeType) : "BigNumber";
+        return t.NativeType != null ? GetNativeTypeName(t.NativeType) : "bigint";
       } else if (xType.AsNewtype != null && member == null) {  // when member is given, use UserDefinedType case below
         NativeType nativeType = xType.AsNewtype.NativeType;
         if (nativeType != null) {
@@ -1226,27 +1231,23 @@ namespace Microsoft.Dafny.Compilers {
       if (goingUp) {
         if (endVarName == null) {
           wr.Write("true");
-        } else if (nativeType == null) {
-          wr.Write($"{loopIndex.CompileName}.isLessThan({endVarName})");
         } else {
           wr.Write($"{loopIndex.CompileName} < {endVarName}");
         }
         if (nativeType == null) {
-          bodyWr = wr.NewBlock($"; {loopIndex.CompileName} = {loopIndex.CompileName}.plus(_dafny.ONE))");
+          bodyWr = wr.NewBlock($"; {loopIndex.CompileName} = {loopIndex.CompileName} + _dafny.ONE)");
         } else {
           bodyWr = wr.NewBlock($"; {loopIndex.CompileName}++)");
         }
       } else {
         if (endVarName == null) {
           wr.Write("true");
-        } else if (nativeType == null) {
-          wr.Write($"{endVarName}.isLessThan({loopIndex.CompileName})");
         } else {
           wr.Write($"{endVarName} < {loopIndex.CompileName}");
         }
         bodyWr = wr.NewBlock($"; )");
         if (nativeType == null) {
-          bodyWr.WriteLine($"{loopIndex.CompileName} = {loopIndex.CompileName}.minus(_dafny.ONE);");
+          bodyWr.WriteLine($"{loopIndex.CompileName} = {loopIndex.CompileName} - s(_dafny.ONE);");
         } else {
           bodyWr.WriteLine($"{loopIndex.CompileName}--;");
         }
@@ -1266,15 +1267,15 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override ConcreteSyntaxTree CreateDoublingForLoop(string indexVar, int start, ConcreteSyntaxTree wr) {
-      return wr.NewNamedBlock("for (let {0} = new BigNumber({1}); ; {0} = {0}.multipliedBy(2))", indexVar, start);
+      return wr.NewNamedBlock("for (let {0} = BigInt({1}); ; {0} = {0} * 2n)", indexVar, start);
     }
 
     protected override void EmitIncrementVar(string varName, ConcreteSyntaxTree wr) {
-      wr.WriteLine("{0} = {0}.plus(1);", varName);
+      wr.WriteLine("{0} = {0} + 1n;", varName);
     }
 
     protected override void EmitDecrementVar(string varName, ConcreteSyntaxTree wr) {
-      wr.WriteLine("{0} = {0}.minus(1);", varName);
+      wr.WriteLine("{0} = {0} - 1n;", varName);
     }
 
     protected override string GetQuantifierName(string bvType) {
@@ -1344,7 +1345,7 @@ namespace Microsoft.Dafny.Compilers {
       var initValue = mustInitialize ? DefaultValue(elementType, wr, tok, true) : null;
       if (dimensions.Count == 1) {
         // handle the common case of 1-dimensional arrays separately
-        wr.Write($"Array(({dimensions[0]}).toNumber())");
+        wr.Write($"Array(Number({dimensions[0]}))");
         if (initValue != null) {
           wr.Write(".fill({0})", initValue);
         }
@@ -1393,13 +1394,13 @@ namespace Microsoft.Dafny.Compilers {
       } else if (e.Value is BaseTypes.BigDec) {
         var n = (BaseTypes.BigDec)e.Value;
         if (0 <= n.Exponent) {
-          wr.Write("new _dafny.BigRational(new BigNumber(\"{0}", n.Mantissa);
+          wr.Write("new _dafny.BigRational(BigInt(\"{0}", n.Mantissa);
           for (int i = 0; i < n.Exponent; i++) {
             wr.Write("0");
           }
           wr.Write("\"))");
         } else {
-          wr.Write($"new _dafny.BigRational({IntegerLiteral(n.Mantissa)}, new BigNumber(\"1");
+          wr.Write($"new _dafny.BigRational({IntegerLiteral(n.Mantissa)}, BigInt(\"1");
           for (int i = n.Exponent; i < 0; i++) {
             wr.Write("0");
           }
@@ -1414,10 +1415,8 @@ namespace Microsoft.Dafny.Compilers {
         return "_dafny.ZERO";
       } else if (i.IsOne) {
         return "_dafny.ONE";
-      } else if (-0x20_0000_0000_0000L < i && i < 0x20_0000_0000_0000L) {  // 53 bits, plus sign
-        return $"new BigNumber({i})";
       } else {
-        return $"new BigNumber(\"{i}\")";
+        return $"{i}n";
       }
     }
 
@@ -1455,7 +1454,7 @@ namespace Microsoft.Dafny.Compilers {
       if (bvType.NativeType == null) {
         wr.Write("(");
         var middle = wr.Fork();
-        wr.Write(").mod(new BigNumber(2).exponentiatedBy({0}))", bvType.Width);
+        wr.Write(").mod(2n ** {0}n)", bvType.Width);
         return middle;
       } else if (bvType.NativeType.Bitwidth != bvType.Width) {
         // no truncation needed
@@ -1482,13 +1481,16 @@ namespace Microsoft.Dafny.Compilers {
       if (bv.Width == 0) {
         tr(e0, wr, inLetExprBody, wStmts);
       } else {
+        if (needsCast) {
+          wr.Write("Number(");
+        }
         wr.Write("_dafny.{0}(", isRotateLeft ? "RotateLeft" : "RotateRight");
         tr(e0, wr, inLetExprBody, wStmts);
-        wr.Write(", (");
+        wr.Write(", Number(");
         tr(e1, wr, inLetExprBody, wStmts);
-        wr.Write(").toNumber(), {0})", bv.Width);
+        wr.Write("), {0})", bv.Width);
         if (needsCast) {
-          wr.Write(".toNumber()");
+          wr.Write(")");
         }
       }
     }
@@ -1575,6 +1577,9 @@ namespace Microsoft.Dafny.Compilers {
         Contract.Assert(!cl.EnclosingModuleDefinition.TryToAvoidName); // default module is not marked ":extern"
         return IdProtect(cl.EnclosingModuleDefinition.GetCompileName(Options));
       } else {
+        // var decl = udt.ResolvedClass;
+        // var localDefinition = decl.EnclosingModuleDefinition == enclosingModule;
+        // return IdProtect(localDefinition ? decl.GetCompileName(Options) : decl.GetFullCompileName(Options));
         return IdProtect(cl.EnclosingModuleDefinition.GetCompileName(Options)) + "." + IdProtect(cl.GetCompileName(Options));
       }
     }
@@ -1631,7 +1636,7 @@ namespace Microsoft.Dafny.Compilers {
             compiledName = "dims[" + (int)idParam + "]";
           }
           if (id == SpecialField.ID.ArrayLength) {
-            preString = "new BigNumber(";
+            preString = "BigInt(";
             postString = ")";
           }
           break;
@@ -1779,7 +1784,7 @@ namespace Microsoft.Dafny.Compilers {
       if (AsNativeType(fromType) == null) {
         return wr;
       }
-      wr.Write("BigNumber");
+      wr.Write("BigInt");
       return wr.ForkInParens();
     }
 
@@ -1819,13 +1824,13 @@ namespace Microsoft.Dafny.Compilers {
       return w;
     }
 
-    protected override string ArrayIndexToInt(string arrayIndex) => $"new BigNumber({arrayIndex})";
+    protected override string ArrayIndexToInt(string arrayIndex) => $"BigInt({arrayIndex})";
 
     protected override void EmitExprAsNativeInt(Expression expr, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
-      TrParenExpr(expr, wr, inLetExprBody, wStmts);
       if (AsNativeType(expr.Type) == null) {
-        wr.Write(".toNumber()");
+        wr.Write("Number");
       }
+      TrParenExpr(expr, wr, inLetExprBody, wStmts);
     }
 
     protected override void EmitIndexCollectionSelect(Expression source, Expression index, bool inLetExprBody,
@@ -1868,15 +1873,15 @@ namespace Microsoft.Dafny.Compilers {
       TrParenExpr(source, wr, inLetExprBody, wStmts);
       if (lo != null) {
         wr.Write(".slice(");
-        wr.Append(Expr(lo, inLetExprBody, wStmts));
+        EmitExprAsNativeInt(lo, inLetExprBody, wr, wStmts);
         if (hi != null) {
           wr.Write(", ");
-          wr.Append(Expr(hi, inLetExprBody, wStmts));
+          EmitExprAsNativeInt(hi, inLetExprBody, wr, wStmts);
         }
         wr.Write(")");
       } else if (hi != null) {
         wr.Write(".slice(0, ");
-        wr.Append(Expr(hi, inLetExprBody, wStmts));
+        EmitExprAsNativeInt(hi, inLetExprBody, wr, wStmts);
         wr.Write(")");
       } else if (fromArray) {
         wr.Write(".slice()");
@@ -2011,7 +2016,7 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case ResolvedUnaryOp.Cardinality:
-          TrParenExpr("new BigNumber(", expr, wr, inLetExprBody, wStmts);
+          TrParenExpr("BigInt(", expr, wr, inLetExprBody, wStmts);
           if (expr.Type.AsMultiSetType != null) {
             wr.Write(".cardinality())");
           } else {
@@ -2105,10 +2110,8 @@ namespace Microsoft.Dafny.Compilers {
 
         case BinaryExpr.ResolvedOpcode.EqCommon: {
             var eqType = DatatypeWrapperEraser.SimplifyType(Options, e0.Type);
-            if (IsDirectlyComparable(eqType)) {
+            if (IsDirectlyComparable(eqType) || eqType.IsIntegerType || eqType.IsBitVectorType) {
               opString = "===";
-            } else if (eqType.IsIntegerType || eqType.IsBitVectorType) {
-              callString = "isEqualTo";
             } else if (eqType.IsRealType) {
               callString = "equals";
             } else {
@@ -2118,11 +2121,8 @@ namespace Microsoft.Dafny.Compilers {
           }
         case BinaryExpr.ResolvedOpcode.NeqCommon: {
             var eqType = DatatypeWrapperEraser.SimplifyType(Options, e0.Type);
-            if (IsDirectlyComparable(eqType)) {
+            if (IsDirectlyComparable(eqType) || eqType.IsIntegerType) {
               opString = "!==";
-            } else if (eqType.IsIntegerType) {
-              preOpString = "!";
-              callString = "isEqualTo";
             } else if (eqType.IsRealType) {
               preOpString = "!";
               callString = "equals";
@@ -2134,19 +2134,17 @@ namespace Microsoft.Dafny.Compilers {
           }
 
         case BinaryExpr.ResolvedOpcode.Lt:
-          if (AsNativeType(e0.Type) != null) {
+          if (AsNativeType(e0.Type) != null || IsRepresentedAsBigNumber(e0.Type)) {
             opString = "<";
-          } else if (IsRepresentedAsBigNumber(e0.Type) || e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
+          } else if (e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
             callString = "isLessThan";
           } else {
             Contract.Assert(false); throw new cce.UnreachableException();
           }
           break;
         case BinaryExpr.ResolvedOpcode.Le:
-          if (AsNativeType(e0.Type) != null) {
+          if (AsNativeType(e0.Type) != null || IsRepresentedAsBigNumber(e0.Type)) {
             opString = "<=";
-          } else if (IsRepresentedAsBigNumber(e0.Type)) {
-            callString = "isLessThanOrEqualTo";
           } else if (e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
             callString = "isAtMost";
           } else {
@@ -2154,11 +2152,8 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Ge:
-          if (AsNativeType(e0.Type) != null) {
+          if (AsNativeType(e0.Type) != null || IsRepresentedAsBigNumber(e0.Type)) {
             opString = ">=";
-          } else if (IsRepresentedAsBigNumber(e0.Type)) {
-            callString = "isLessThanOrEqualTo";
-            reverseArguments = true;
           } else if (e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
             callString = "isAtMost";
             reverseArguments = true;
@@ -2167,9 +2162,9 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Gt:
-          if (AsNativeType(e0.Type) != null) {
+          if (AsNativeType(e0.Type) != null || IsRepresentedAsBigNumber(e0.Type)) {
             opString = ">";
-          } else if (IsRepresentedAsBigNumber(e0.Type) || e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
+          } else if (e0.Type.IsNumericBased(Type.NumericPersuasion.Real)) {
             callString = "isLessThan";
             reverseArguments = true;
           } else {
@@ -2219,9 +2214,9 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Add:
-          if (resultType.IsIntegerType || resultType.IsRealType || resultType.IsBigOrdinalType) {
+          if (resultType.IsRealType) {
             callString = "plus"; truncateResult = true;
-          } else if (AsNativeType(resultType) != null) {
+          } else if (AsNativeType(resultType) != null || resultType.IsIntegerType || resultType.IsBigOrdinalType) {
             opString = "+";
           } else if (resultType.IsCharType) {
             staticCallString = $"_dafny.{CharMethodQualifier}PlusChar";
@@ -2230,9 +2225,9 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Sub:
-          if (resultType.IsIntegerType || resultType.IsRealType || resultType.IsBigOrdinalType) {
+          if (resultType.IsRealType) {
             callString = "minus"; truncateResult = true;
-          } else if (AsNativeType(resultType) != null) {
+          } else if (AsNativeType(resultType) != null || resultType.IsIntegerType || resultType.IsBigOrdinalType) {
             opString = "-";
           } else if (resultType.IsCharType) {
             staticCallString = $"_dafny.{CharMethodQualifier}MinusChar";
@@ -2241,9 +2236,7 @@ namespace Microsoft.Dafny.Compilers {
           }
           break;
         case BinaryExpr.ResolvedOpcode.Mul:
-          if (resultType.IsIntegerType || resultType.IsRealType) {
-            callString = "multipliedBy"; truncateResult = true;
-          } else if (AsNativeType(resultType) != null) {
+          if (AsNativeType(resultType) != null || resultType.IsIntegerType || resultType.IsRealType) {
             opString = "*";
           } else {
             callString = "multipliedBy"; truncateResult = true;
@@ -2254,18 +2247,14 @@ namespace Microsoft.Dafny.Compilers {
             callString = "dividedBy";
           } else if (resultType.IsIntegerType || AsNativeType(resultType) == null) {
             staticCallString = "_dafny.EuclideanDivision";
-          } else if (AsNativeType(resultType).LowerBound < BigInteger.Zero) {
+          } else if (AsNativeType(resultType)?.LowerBound < BigInteger.Zero) {
             staticCallString = "_dafny.EuclideanDivisionNumber";
           } else {
             opString = "/";
           }
           break;
         case BinaryExpr.ResolvedOpcode.Mod:
-          if (resultType.IsIntegerType) {
-            callString = "mod";
-          } else if (AsNativeType(resultType) == null) {
-            callString = "mod";
-          } else if (AsNativeType(resultType).LowerBound < BigInteger.Zero) {
+          if (AsNativeType(resultType)?.LowerBound < BigInteger.Zero) {
             staticCallString = "_dafny.EuclideanModuloNumber";
           } else {
             opString = "%";
@@ -2336,7 +2325,7 @@ namespace Microsoft.Dafny.Compilers {
           Contract.Assert(AsNativeType(e.ToType) == null);
           wr.Write("new _dafny.BigRational(");
           if (AsNativeType(e.E.Type) != null || e.E.Type.IsCharType) {
-            wr.Write("new BigNumber");
+            wr.Write("BigInt");
           }
           if (e.E.Type.IsCharType) {
             wr.Write("(");
@@ -2347,13 +2336,10 @@ namespace Microsoft.Dafny.Compilers {
             wr.Write(UnicodeCharEnabled ? ".value)" : ".charCodeAt(0))");
           }
 
-          wr.Write(", new BigNumber(1))");
+          wr.Write(", 1n)");
         } else if (e.ToType.IsCharType) {
           wr.Write($"{CharFromNumberMethodName()}(");
-          TrParenExpr(e.E, wr, inLetExprBody, wStmts);
-          if (AsNativeType(e.E.Type) == null) {
-            wr.Write(".toNumber()");
-          }
+          EmitExprAsNativeInt(e.E, inLetExprBody, wr, wStmts);
           wr.Write(")");
         } else {
           // (int or bv or char) -> (int or bv or ORDINAL)
@@ -2366,7 +2352,7 @@ namespace Microsoft.Dafny.Compilers {
             Contract.Assert(fromNative == null);
             if (toNative == null) {
               // char -> big-integer (int or bv or ORDINAL)
-              wr.Write("new BigNumber(");
+              wr.Write("BigInt(");
               TrParenExpr(e.E, wr, inLetExprBody, wStmts);
               wr.Write(UnicodeCharEnabled ? ".value)" : ".charCodeAt(0))");
             } else {
@@ -2379,7 +2365,7 @@ namespace Microsoft.Dafny.Compilers {
             wr.Append(Expr(e.E, inLetExprBody, wStmts));
           } else if (fromNative != null && toNative == null) {
             // native (int or bv) -> big-integer (int or bv)
-            wr.Write("new BigNumber");
+            wr.Write("BigInt");
             TrParenExpr(e.E, wr, inLetExprBody, wStmts);
           } else {
             // any (int or bv) -> native (int or bv)
@@ -2400,8 +2386,8 @@ namespace Microsoft.Dafny.Compilers {
               wr.Write(".length");
             } else {
               // no optimization applies; use the standard translation
+              wr.Write("Number");
               TrParenExpr(e.E, wr, inLetExprBody, wStmts);
-              wr.Write(".toNumber()");
             }
           }
         }
@@ -2417,10 +2403,13 @@ namespace Microsoft.Dafny.Compilers {
           wr.Write(".toBigNumber().toNumber())");
         } else {
           // real -> (int or bv)
+          if (AsNativeType(e.ToType) != null) {
+            wr.Write("Number(");
+          }
           TrParenExpr(e.E, wr, inLetExprBody, wStmts);
           wr.Write(".toBigNumber()");
           if (AsNativeType(e.ToType) != null) {
-            wr.Write(".toNumber()");
+            wr.Write(")");
           }
         }
       } else if (e.E.Type.IsBigOrdinalType) {

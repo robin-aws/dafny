@@ -5719,7 +5719,7 @@ namespace Microsoft.Dafny.Compilers {
       Type collectionElementType, Type boundVarType, bool inLetExprBody,
       IToken tok, ConcreteSyntaxTree wr, bool isReturning = false, bool elseReturnValue = false
       ) {
-      var iterationValuesNeedToBeChecked = IsTargetSupertype(collectionElementType, boundVarType);
+      var iterationValuesNeedToBeChecked = !IsTargetSupertype(collectionElementType, boundVarType);
       if (iterationValuesNeedToBeChecked) {
         var preconditions = wr.Fork();
         var conditions = GetSubtypeCondition(tmpVarName, boundVarType, tok, preconditions);

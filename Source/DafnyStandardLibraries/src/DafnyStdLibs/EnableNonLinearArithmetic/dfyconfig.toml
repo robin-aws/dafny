@@ -13,6 +13,7 @@ excludes = [
 track-print-effects = true
 enforce-determinism = true
 reads-clauses-on-methods = true
+unicode-char = false
 
 # Options important for sustainable development
 # of the libraries themselves.

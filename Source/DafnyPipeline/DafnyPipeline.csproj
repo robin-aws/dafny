@@ -64,7 +64,7 @@
       <LinkBase>DafnyStandardLibraries_java</LinkBase>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\DafnyStandardLibraries\src\**\*.js">
+    <EmbeddedResource Include="..\DafnyStandardLibraries\src\**\*.ts">
       <LinkBase>DafnyStandardLibraries_js</LinkBase>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
@@ -118,7 +118,7 @@
       <LinkBase>DafnyRuntimeCpp</LinkBase>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="..\DafnyRuntime\DafnyRuntimeJs\**\*.js">
+    <EmbeddedResource Include="..\DafnyRuntime\DafnyRuntimeJs\**\*.ts">
       <LinkBase>DafnyRuntimeJs</LinkBase>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </EmbeddedResource>

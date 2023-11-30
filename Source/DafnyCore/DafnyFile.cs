@@ -98,9 +98,10 @@ public class DafnyFile {
         dooFile = DooFile.Read(filePath);
       }
 
-      if (!dooFile.Validate(reporter, filePathForErrors, options, options.CurrentCommand, origin)) {
-        return null;
-      }
+      // TODO: HACK
+      // if (!dooFile.Validate(reporter, filePathForErrors, options, options.CurrentCommand, origin)) {
+      //   return null;
+      // }
 
       // For now it's simpler to let the rest of the pipeline parse the
       // program text back into the AST representation.

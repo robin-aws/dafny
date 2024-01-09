@@ -412,6 +412,9 @@ NoGhost - disable printing of functions, ghost methods, and proof
     DafnyOptions.RegisterLegacyUi(ReadsClausesOnMethods, DafnyOptions.ParseBoolean, "Language feature selection", "readsClausesOnMethods", @"
 0 (default) - Reads clauses on methods are forbidden.
 1 - Reads clauses on methods are permitted (with a default of 'reads *').".TrimStart(), defaultValue: false);
+    
+    // TODO-HACK
+    DafnyOptions.RegisterLegacyUi(ExecutionCoverageReport, DafnyOptions.ParseString, "Compilation options", "coverageReport", "");
 
     QuantifierSyntax = QuantifierSyntax.FromAmong("3", "4");
     DafnyOptions.RegisterLegacyBinding(JsonDiagnostics, (options, value) => {

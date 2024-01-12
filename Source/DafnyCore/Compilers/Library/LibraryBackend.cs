@@ -69,6 +69,16 @@ public class LibraryBackend : ExecutableBackend {
     if (!Options.UsingNewCli) {
       throw new UnsupportedFeatureException(dafnyProgram.GetStartOfFirstFileToken(), Feature.LegacyCLI);
     }
+    
+    // Don't allow any modules that are compilable (and hence will be included in the doo file)
+    // but weren't verified.
+    // TODO: better error message?
+    foreach (var module in dafnyProgram.Modules()) {
+      if (module.ShouldCompile(dafnyProgram.Compilation) && !module.ShouldVerify(dafnyProgram.Compilation)) {
+        Reporter.Error(MessageSource.Compiler, module.tok, 
+          $"{module.FullDafnyName} was not verified and cannot be included in a doo file. If it was loaded through an include statement, consider using --verify-included-files.");
+      }
+    }
 
     var disallowedAssumptions = dafnyProgram.Assumptions(null)
       .Where(a => !a.desc.allowedInLibraries);
@@ -76,6 +86,8 @@ public class LibraryBackend : ExecutableBackend {
       var message = assumption.desc.issue.Replace("{", "{{").Replace("}", "}}");
       Reporter.Error(MessageSource.Compiler, assumption.tok, message, message);
     }
+    
+    // TODO: don't write the file if there are errors?
 
     // var dooFile = new DooFile(dafnyProgram);
     // dooFile.Write(output);

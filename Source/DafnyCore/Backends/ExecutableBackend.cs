@@ -230,6 +230,7 @@ public abstract class ExecutableBackend : IExecutableBackend {
      */
 
     psi.RedirectStandardOutput = true;
+    psi.RedirectStandardError = true;
     var process = new Process();
     process.StartInfo = psi;
     var outputBuilder = new List<string>();

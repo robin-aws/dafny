@@ -220,7 +220,7 @@ public abstract class ExecutableBackend : IExecutableBackend {
       .Prepend("run")
       .Prepend(dafny);
     var psi = PrepareProcessStartInfo("dotnet", args);
-    await Console.Out.WriteLineAsync(string.Join(", ", psi.ArgumentList));
+    // await Console.Out.WriteLineAsync(string.Join(", ", psi.ArgumentList));
     /*
      * When this code was written, the Dafny compiler cannot be made completely silent.
      * This is a problem for this specific compiler and the integration tests because the second
@@ -246,11 +246,11 @@ public abstract class ExecutableBackend : IExecutableBackend {
       process.CancelOutputRead();
       process.CancelErrorRead();
 
-      for (int i = 2; i < outputBuilder.Count - 1; i++) {
+      for (int i = 0; i < outputBuilder.Count; i++) {
         await outputWriter.WriteLineAsync(outputBuilder[i]);
       }
 
-      for (int i = 0; i < errorBuilder.Count - 1; i++) {
+      for (int i = 0; i < errorBuilder.Count; i++) {
         await errorWriter.WriteLineAsync(errorBuilder[i]);
       }
 

@@ -38,9 +38,9 @@ namespace Microsoft.Dafny.Compilers {
       }
     }
 
-    public static void throwGeneralUnsupported() {
+    public static void throwGeneralUnsupported(IToken tok) {
       // throw new InvalidOperationException(); // (useful for debugging)
-      throw new UnsupportedFeatureException(Token.NoToken, Feature.RunAllTests);
+      throw new UnsupportedFeatureException(tok, Feature.RunAllTests);
     }
 
     public override IReadOnlySet<Feature> UnsupportedFeatures => new HashSet<Feature> {
@@ -81,12 +81,12 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     public override void EmitCallToMain(Method mainMethod, string baseName, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(Token.NoToken);
       throw new InvalidOperationException();
     }
 
     protected override ConcreteSyntaxTree CreateStaticMain(IClassWriter cw, string argsParameterName) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(Token.NoToken);
       throw new InvalidOperationException();
     }
 
@@ -151,7 +151,7 @@ namespace Microsoft.Dafny.Compilers {
         if (from == null || to == null || from.Equals(to, true)) {
           return wr;
         } else {
-          throwGeneralUnsupported();
+          throwGeneralUnsupported(tok);
           throw new InvalidOperationException();
         }
       }
@@ -163,7 +163,7 @@ namespace Microsoft.Dafny.Compilers {
         List<DAST.Type> typeParams = new();
         foreach (var tp in typeParameters) {
           if (!isTpSupported(tp)) {
-            throwGeneralUnsupported(); //("Contravariance in type parameters");
+            throwGeneralUnsupported(tp.tok); //("Contravariance in type parameters");
           }
 
           typeParams.Add((DAST.Type)DAST.Type.create_TypeArg(Sequence<Rune>.UnicodeFromString(IdProtect(tp.GetCompileName(Options)))));
@@ -206,7 +206,7 @@ namespace Microsoft.Dafny.Compilers {
         List<DAST.Type> typeParams = new();
         foreach (var tp in dt.TypeArgs) {
           if (!isTpSupported(tp) && !(dt is TupleTypeDecl)) {
-            throwGeneralUnsupported(); //("Contravariance in type parameters");
+            throwGeneralUnsupported(tp.tok); //("Contravariance in type parameters");
           }
 
           typeParams.Add((DAST.Type)DAST.Type.create_TypeArg(Sequence<Rune>.UnicodeFromString(IdProtect(tp.GetCompileName(Options)))));
@@ -307,10 +307,10 @@ namespace Microsoft.Dafny.Compilers {
         var valueType = map.Range;
         return (DAST.Type)DAST.Type.create_Map(GenType(keyType), GenType(valueType));
       } else if (xType is BitvectorType) {
-        throwGeneralUnsupported(); //("Bitvector types");
+        throwGeneralUnsupported(typ.tok); //("Bitvector types");
         throw new InvalidOperationException();
       } else {
-        throwGeneralUnsupported(); //("Type name for " + xType + " (" + typ.GetType() + ")");
+        throwGeneralUnsupported(typ.tok); //("Type name for " + xType + " (" + typ.GetType() + ")");
         throw new InvalidOperationException();
       }
     }
@@ -336,7 +336,7 @@ namespace Microsoft.Dafny.Compilers {
         List<DAST.Type> typeParams = new();
         foreach (var tp in sst.TypeArgs) {
           if (!isTpSupported(tp)) {
-            throwGeneralUnsupported(); //("Contravariance in type parameters");
+            throwGeneralUnsupported(tp.tok); //("Contravariance in type parameters");
           }
 
           typeParams.Add((DAST.Type)DAST.Type.create_TypeArg(Sequence<Rune>.UnicodeFromString(tp.Name)));
@@ -369,13 +369,13 @@ namespace Microsoft.Dafny.Compilers {
       public ConcreteSyntaxTree CreateMethod(Method m, List<TypeArgumentInstantiation> typeArgs, bool createBody,
         bool forBodyInheritance, bool lookasideBody) {
         if (m.IsStatic && this.hasTypeArgs) {
-          throwGeneralUnsupported(); //("Static methods with type arguments");
+          throwGeneralUnsupported(m.tok); //("Static methods with type arguments");
         }
 
         List<DAST.Type> astTypeArgs = new();
         foreach (var typeArg in typeArgs) {
           if (!isTpSupported(typeArg.Formal)) {
-            throwGeneralUnsupported(); //("Contravariance in type parameters")
+            throwGeneralUnsupported(typeArg.Formal.tok); //("Contravariance in type parameters")
           }
 
           astTypeArgs.Add((DAST.Type)DAST.Type.create_TypeArg(Sequence<Rune>.UnicodeFromString(compiler.IdProtect(typeArg.Formal.GetCompileName(compiler.Options)))));
@@ -423,13 +423,13 @@ namespace Microsoft.Dafny.Compilers {
           List<Formal> formals, Type resultType, IToken tok, bool isStatic, bool createBody, MemberDecl member,
           bool forBodyInheritance, bool lookasideBody) {
         if (isStatic && this.hasTypeArgs) {
-          throwGeneralUnsupported(); //("Static methods with type arguments");
+          throwGeneralUnsupported(tok); //("Static methods with type arguments");
         }
 
         List<DAST.Type> astTypeArgs = new();
         foreach (var typeArg in typeArgs) {
           if (!isTpSupported(typeArg.Formal)) {
-            throwGeneralUnsupported(); //("Contravariance in type parameters");
+            throwGeneralUnsupported(typeArg.Formal.tok); //("Contravariance in type parameters");
           }
 
           astTypeArgs.Add((DAST.Type)DAST.Type.create_TypeArg(Sequence<Rune>.UnicodeFromString(compiler.IdProtect(typeArg.Formal.GetCompileName(compiler.Options)))));
@@ -465,7 +465,7 @@ namespace Microsoft.Dafny.Compilers {
       public ConcreteSyntaxTree CreateGetter(string name, TopLevelDecl enclosingDecl, Type resultType, IToken tok,
           bool isStatic, bool isConst, bool createBody, MemberDecl member, bool forBodyInheritance) {
         if (isStatic && this.hasTypeArgs) {
-          throwGeneralUnsupported(); //("Static fields with type arguments");
+          throwGeneralUnsupported(tok); //("Static fields with type arguments");
         }
 
         var overridingTrait = member.OverriddenMember?.EnclosingClass;
@@ -490,7 +490,7 @@ namespace Microsoft.Dafny.Compilers {
 
       public ConcreteSyntaxTree CreateGetterSetter(string name, Type resultType, IToken tok,
           bool createBody, MemberDecl member, out ConcreteSyntaxTree setterWriter, bool forBodyInheritance) {
-        throwGeneralUnsupported();
+        throwGeneralUnsupported(tok);
         throw new InvalidOperationException();
       }
 
@@ -629,7 +629,7 @@ namespace Microsoft.Dafny.Compilers {
               );
             }
           } else if (type.IsArrowType) {
-            throwGeneralUnsupported();
+            throwGeneralUnsupported(type.tok);
             throw new InvalidOperationException();
           } else {
             bufferedInitializationValue = Option<DAST._IExpression>.create_Some(
@@ -679,7 +679,7 @@ namespace Microsoft.Dafny.Compilers {
       } else if (wr is BuilderSyntaxTree<ExprContainer> st2 && st2.Builder is CallStmtBuilder callStmt) {
         callStmt.SetName(protectedName);
       } else {
-        throwGeneralUnsupported();
+        throwGeneralUnsupported(tok);
       }
 
       base.EmitNameAndActualTypeArgs(protectedName, typeArgs, tok, wr);
@@ -691,7 +691,7 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override bool DeclareFormal(string prefix, string name, Type type, IToken tok, bool isInParam, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(tok);
       throw new InvalidOperationException();
     }
 
@@ -901,7 +901,7 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override ILvalue MultiSelectLvalue(MultiSelectExpr ll, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(ll.tok);
       throw new InvalidOperationException();
     }
 
@@ -1032,11 +1032,11 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override void EmitIncrementVar(string varName, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(Token.NoToken);
     }
 
     protected override void EmitDecrementVar(string varName, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(Token.NoToken);
     }
 
     protected override ConcreteSyntaxTree EmitQuantifierExpr(Action<ConcreteSyntaxTree> collection, bool isForall, Type collectionElementType, BoundVar bv, ConcreteSyntaxTree wr) {
@@ -1080,8 +1080,7 @@ namespace Microsoft.Dafny.Compilers {
 
     protected override ConcreteSyntaxTree CreateForeachIngredientLoop(string boundVarName, int L, string tupleTypeArgs,
         out ConcreteSyntaxTree collectionWriter, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
-      throw new InvalidOperationException();
+      throw new UnsupportedFeatureException(Token.NoToken, Feature.ForLoops);
     }
 
     protected override void EmitNew(Type type, IToken tok, CallStmt initCall, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
@@ -1157,7 +1156,7 @@ namespace Microsoft.Dafny.Compilers {
                 new Rune(codePoint)
               ));
             } else {
-              throwGeneralUnsupported();
+              throwGeneralUnsupported(c.tok);
               throw new InvalidOperationException();
             }
             break;
@@ -1229,13 +1228,13 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override void EmitStringLiteral(string str, bool isVerbatim, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(Token.NoToken);
       throw new InvalidOperationException();
     }
 
     protected override ConcreteSyntaxTree EmitBitvectorTruncation(BitvectorType bvType, [CanBeNull] NativeType nativeType,
       bool surroundByUnchecked, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(bvType.tok);
       throw new InvalidOperationException();
     }
 
@@ -1269,7 +1268,7 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override string FullTypeName(UserDefinedType udt, MemberDecl member = null) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(udt.tok);
       throw new InvalidOperationException();
     }
 
@@ -1465,7 +1464,7 @@ namespace Microsoft.Dafny.Compilers {
         case SpecialField.ID.ArrayLength:
           break;
         default:
-          throwGeneralUnsupported(); //("Special field: " + id);
+          throwGeneralUnsupported(Token.NoToken); //("Special field: " + id);
           throw new InvalidOperationException();
       }
     }
@@ -1656,7 +1655,7 @@ namespace Microsoft.Dafny.Compilers {
 
     protected override void EmitIndexCollectionUpdate(Expression source, Expression index, Expression value,
       CollectionType resultCollectionType, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(Token.NoToken);
     }
 
     protected override void EmitSeqSelectRange(Expression source, Expression lo, Expression hi, bool fromArray,
@@ -1852,11 +1851,11 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override void EmitCharBoundedPool(bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(Token.NoToken);
     }
 
     protected override void EmitWiggleWaggleBoundedPool(bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(Token.NoToken);
     }
 
     protected override void EmitSetBoundedPool(Expression of, string propertySuffix, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
@@ -1873,15 +1872,15 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override void EmitMultiSetBoundedPool(Expression of, bool includeDuplicates, string propertySuffix, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(of.tok);
     }
 
     protected override void EmitSubSetBoundedPool(Expression of, string propertySuffix, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(of.tok);
     }
 
     protected override void EmitMapBoundedPool(Expression map, string propertySuffix, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(map.tok);
     }
 
     protected override void EmitSeqBoundedPool(Expression of, bool includeDuplicates, string propertySuffix, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
@@ -1899,7 +1898,7 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override void EmitDatatypeBoundedPool(IVariable bv, string propertySuffix, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(bv.Tok);
     }
 
     protected override void CreateIIFE(string bvName, Type bvType, IToken bvTok, Type bodyType, IToken bodyTok,
@@ -2083,7 +2082,7 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override void EmitIsZero(string varName, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(Token.NoToken);
     }
 
     protected override void EmitConversionExpr(Expression fromExpr, Type fromType, Type toType, bool inLetExprBody, ConcreteSyntaxTree wr, ConcreteSyntaxTree wStmts) {
@@ -2144,7 +2143,7 @@ namespace Microsoft.Dafny.Compilers {
             Sequence<DAST.Expression>.FromArray(elementsAST.ToArray())
           ));
         } else if (ct is MultiSetType multiSet) {
-          throwGeneralUnsupported();
+          throwGeneralUnsupported(tok);
         } else if (ct is SeqType seq) {
           builder.Builder.AddExpr((DAST.Expression)DAST.Expression.create_SeqValue(
             Sequence<DAST.Expression>.FromArray(elementsAST.ToArray()),
@@ -2182,24 +2181,24 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override void EmitSetBuilder_New(ConcreteSyntaxTree wr, SetComprehension e, string collectionName) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(e.tok);
       throw new InvalidOperationException();
     }
 
     protected override void EmitMapBuilder_New(ConcreteSyntaxTree wr, MapComprehension e, string collectionName) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(e.tok);
       throw new InvalidOperationException();
     }
 
     protected override void EmitSetBuilder_Add(CollectionType ct, string collName, Expression elmt, bool inLetExprBody,
         ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(elmt.tok);
       throw new InvalidOperationException();
     }
 
     protected override ConcreteSyntaxTree EmitMapBuilder_Add(MapType mt, IToken tok, string collName, Expression term,
         bool inLetExprBody, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(tok);
       throw new InvalidOperationException();
     }
 
@@ -2212,7 +2211,7 @@ namespace Microsoft.Dafny.Compilers {
           baseExpr = DAST.Expression.create_Literal(DAST.Literal.create_BoolLiteral(true));
         } else {
           // typeTest = $"{tmpVarName} instanceof {TypeName(boundVarType, wPreconditions, tok)}";
-          throwGeneralUnsupported();
+          throwGeneralUnsupported(tok);
           throw new InvalidOperationException();
         }
 
@@ -2257,7 +2256,7 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override string GetCollectionBuilder_Build(CollectionType ct, IToken tok, string collName, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(tok);
       throw new InvalidOperationException();
     }
 
@@ -2287,8 +2286,8 @@ namespace Microsoft.Dafny.Compilers {
       );
     }
 
-    protected override void EmitNull(Type _, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+    protected override void EmitNull(Type t, ConcreteSyntaxTree wr) {
+      throwGeneralUnsupported(t.tok);
     }
 
     protected override void EmitSingleValueGenerator(Expression e, bool inLetExprBody, string type,
@@ -2297,7 +2296,7 @@ namespace Microsoft.Dafny.Compilers {
     }
 
     protected override void EmitHaltRecoveryStmt(Statement body, string haltMessageVarName, Statement recoveryBody, ConcreteSyntaxTree wr) {
-      throwGeneralUnsupported();
+      throwGeneralUnsupported(body.tok);
     }
 
   }

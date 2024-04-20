@@ -321,7 +321,7 @@ experimentalPredicateAlwaysGhost - Compiled functions are written `function`. Gh
       options.FunctionSyntax = functionSyntaxOptionsMap[value];
     });
 
-    DooFile.RegisterNoChecksNeeded(FunctionSyntaxOption);
+    DooFile.RegisterParsingOptions(FunctionSyntaxOption);
   }
 
   public bool SetIndent(int indentBefore, TokenNewIndentCollector formatter) {

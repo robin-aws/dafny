@@ -45,7 +45,7 @@ public class DooFile {
 
       Options = new Dictionary<string, object>();
       foreach (var (option, _) in OptionChecks) {
-        var optionValue = GetOptionValue(options, option);
+        var optionValue = options.Get((dynamic)option);
         Options.Add(option.Name, optionValue);
       }
     }
@@ -173,25 +173,6 @@ public class DooFile {
     return result;
   }
 
-  private static object GetOptionValue(DafnyOptions options, Option option) {
-    // This is annoyingly necessary because only DafnyOptions.Get<T>(Option<T> option)
-    // handles falling back to the configured default option value,
-    // whereas the non-generic DafnyOptions.Get(Option option) doesn't.
-    // TODO: Move somewhere more generic if this is useful in other cases?
-    var optionType = option.ValueType;
-    if (optionType == typeof(bool)) {
-      return options.Get((Option<bool>)option);
-    }
-    if (optionType == typeof(string)) {
-      return options.Get((Option<string>)option);
-    }
-    if (optionType == typeof(IEnumerable<string>)) {
-      return options.Get((Option<IEnumerable<string>>)option);
-    }
-
-    throw new ArgumentException();
-  }
-
   public void Write(ConcreteSyntaxTree wr) {
     var manifestWr = wr.NewFile(ManifestFileEntry);
     using var manifestWriter = new StringWriter();
@@ -264,6 +245,12 @@ public class DooFile {
     reporter.Error(MessageSource.Project, origin, LocalImpliesLibraryMessage(option, localValue, libraryFile, libraryValue));
     return false;
   }
+  
+  // Used for options that affect parsing but don't need compatibility checks,
+  // to ensure they are recorded in the doo file and used to re-parse the contents later.
+  private static bool ParsingOnlyOptionCheck(ErrorReporter reporter, IToken origin, Option option, object localValue, string libraryFile, object libraryValue) {
+    return true;
+  }
 
   public static string LocalImpliesLibraryMessage(Option option, object localValue, string libraryFile, object libraryValue) {
     return $"cannot load {libraryFile}: --{option.Name} is set locally to {OptionValueToString(option, localValue)}, but the library was built with {OptionValueToString(option, libraryValue)}";
@@ -316,6 +303,15 @@ public class DooFile {
         throw new ArgumentException($"Option already registered as needing a library check: {option.Name}");
       }
       NoChecksNeeded.Add(option);
+    }
+  }
+  
+  public static void RegisterParsingOptions(params Option[] options) {
+    foreach (var option in options) {
+      if (NoChecksNeeded.Contains(option)) {
+        throw new ArgumentException($"Option already registered as not needing a library check: {option.Name}");
+      }
+      OptionChecks.Add(option, ParsingOnlyOptionCheck);
     }
   }
 

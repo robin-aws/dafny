@@ -589,6 +589,9 @@ NoGhost - disable printing of functions, ghost methods, and proof
         }
       }
     );
+    DooFile.RegisterParsingOptions(
+      QuantifierSyntax
+      );
     DooFile.RegisterNoChecksNeeded(
       WarnAsErrors,
       ProgressOption,
@@ -606,7 +609,6 @@ NoGhost - disable printing of functions, ghost methods, and proof
       AllowDeprecation,
       FormatPrint,
       JsonDiagnostics,
-      QuantifierSyntax,
       SpillTranslation,
       StdIn,
       TestAssumptions,

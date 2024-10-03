@@ -219,7 +219,7 @@ Where to output the translation record file. Defaults to the output directory. S
     return cmd;
   }
 
-  public virtual void PopulateCoverageReport(CoverageReport coverageReport) {
+  public virtual void PopulateCoverageReport(CoverageReport coverageReport, Program program) {
     throw new NotImplementedException();
   }
 }

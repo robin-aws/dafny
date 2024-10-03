@@ -94,9 +94,14 @@ public class CoverageInstrumenter {
     }
   }
 
-  public void PopulateCoverageReport(CoverageReport coverageReport) {
+  public void PopulateCoverageReport(CoverageReport coverageReport, Program program) {
     var coverageReportDir = codeGenerator.Options?.Get(CommonOptionBag.ExecutionCoverageReport);
     if (coverageReportDir != null) {
+      // TODO: This is a very expensive thing to do at this point.
+      // Better to reuse the translation for earlier verification if it happened,
+      // and probably do the translation earlier even with --no-verify
+      var boogiePrograms = BoogieGenerator.Translate(program, program.Reporter);
+      
       var tallies = File.ReadLines(talliesFilePath).Select(int.Parse).ToArray();
       foreach (var ((token, _), tally) in legend.Zip(tallies)) {
         var label = tally == 0 ? CoverageLabel.NotCovered : CoverageLabel.FullyCovered;

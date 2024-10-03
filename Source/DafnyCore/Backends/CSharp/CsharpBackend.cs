@@ -139,8 +139,8 @@ public class CsharpBackend : ExecutableBackend {
     return await RunProcess(psi, outputWriter, errorWriter) == 0;
   }
 
-  public override void PopulateCoverageReport(CoverageReport coverageReport) {
-    codeGenerator.Coverage.PopulateCoverageReport(coverageReport);
+  public override void PopulateCoverageReport(CoverageReport coverageReport, Program program) {
+    codeGenerator.Coverage.PopulateCoverageReport(coverageReport, program);
   }
 
   public CsharpBackend(DafnyOptions options) : base(options) {

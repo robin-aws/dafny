@@ -739,7 +739,7 @@ namespace Microsoft.Dafny {
             var coverageReportDir = options.Get(CommonOptionBag.ExecutionCoverageReport);
             if (coverageReportDir != null) {
               var coverageReport = new CoverageReport("Execution Coverage", "Branches", "_tests_actual", dafnyProgram);
-              compiler.PopulateCoverageReport(coverageReport);
+              compiler.PopulateCoverageReport(coverageReport, dafnyProgram);
               await new CoverageReporter(options).SerializeCoverageReports(coverageReport, coverageReportDir);
             }
           }

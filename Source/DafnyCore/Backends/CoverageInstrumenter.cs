@@ -1,7 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
+using Bpl = Microsoft.Boogie;
+using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 
 namespace Microsoft.Dafny.Compilers;
 
@@ -94,24 +97,43 @@ public class CoverageInstrumenter {
     }
   }
 
-  public void PopulateCoverageReport(CoverageReport coverageReport, Program program) {
+  public async void PopulateCoverageReport(CoverageReport coverageReport, Program program) {
     var coverageReportDir = codeGenerator.Options?.Get(CommonOptionBag.ExecutionCoverageReport);
     if (coverageReportDir != null) {
-      // TODO: This is a very expensive thing to do at this point.
+      // TODO: This is a expensive thing to do at this point.
       // Better to reuse the translation for earlier verification if it happened,
       // and probably do the translation earlier even with --no-verify
-      var boogiePrograms = BoogieGenerator.Translate(program, program.Reporter);
+      var boogiePrograms = BoogieGenerator.Translate(program, program.Reporter).Select(p => p.Item2);
+      var optionsWithoutVerify = new DafnyOptions(codeGenerator.Options);
+      optionsWithoutVerify.Verify = false;
+      using (var engine = Bpl.ExecutionEngine.CreateWithoutSharedCache(optionsWithoutVerify)) {
+        foreach (var boogieProgram in boogiePrograms) {
+          var (outcome, _) = await DafnyMain.BoogieOnce(new ErrorReporterSink(optionsWithoutVerify),
+            optionsWithoutVerify, optionsWithoutVerify.OutputWriter, engine, "", "", boogieProgram, "programId");
+        }
+      }
       
       var tallies = File.ReadLines(talliesFilePath).Select(int.Parse).ToArray();
       foreach (var ((token, _), tally) in legend.Zip(tallies)) {
         var label = tally == 0 ? CoverageLabel.NotCovered : CoverageLabel.FullyCovered;
-        // For now we only identify branches at the line granularity,
-        // which matches what `dafny generate-tests ... --coverage-report` does as well.
+        FindBasicBlockRange(boogiePrograms, token);
         var rangeToken = new RangeToken(new Token(token.line, 1), new Token(token.line + 1, 0));
         rangeToken.Uri = token.Uri;
         coverageReport.LabelCode(rangeToken, label);
       }
     }
+  }
+
+  private RangeToken FindBasicBlockRange(IEnumerable<Bpl.Program> boogiePrograms, IToken token) {
+    foreach (var program in boogiePrograms) {
+      foreach (var implementation in program.Implementations) {
+        foreach (var block in implementation.Blocks) {
+          Console.Out.WriteLine(block.tok);
+        }
+      }
+    }
+
+    return null;
   }
 
 }

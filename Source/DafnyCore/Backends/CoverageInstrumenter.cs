@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Bpl = Microsoft.Boogie;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 
@@ -97,7 +98,7 @@ public class CoverageInstrumenter {
     }
   }
 
-  public async void PopulateCoverageReport(CoverageReport coverageReport, Program program) {
+  public async Task PopulateCoverageReport(CoverageReport coverageReport, Program program) {
     var coverageReportDir = codeGenerator.Options?.Get(CommonOptionBag.ExecutionCoverageReport);
     if (coverageReportDir != null) {
       // TODO: This is a expensive thing to do at this point.
@@ -116,8 +117,8 @@ public class CoverageInstrumenter {
       var tallies = File.ReadLines(talliesFilePath).Select(int.Parse).ToArray();
       foreach (var ((token, _), tally) in legend.Zip(tallies)) {
         var label = tally == 0 ? CoverageLabel.NotCovered : CoverageLabel.FullyCovered;
-        FindBasicBlockRange(boogiePrograms, token);
-        var rangeToken = new RangeToken(new Token(token.line, 1), new Token(token.line + 1, 0));
+        var rangeTokenFromBlock = FindBasicBlockRange(boogiePrograms, token);
+        var rangeToken = rangeTokenFromBlock ?? new RangeToken(new Token(token.line, 1), new Token(token.line + 1, 0));
         rangeToken.Uri = token.Uri;
         coverageReport.LabelCode(rangeToken, label);
       }
@@ -128,12 +129,33 @@ public class CoverageInstrumenter {
     foreach (var program in boogiePrograms) {
       foreach (var implementation in program.Implementations) {
         foreach (var block in implementation.Blocks) {
-          Console.Out.WriteLine(block.tok);
+          RangeToken blockRange = RangeForBlock(block);
+          if (blockRange != null && blockRange.Contains(token.pos)) {
+            return blockRange;
+          }
         }
       }
     }
 
     return null;
+  }
+
+  private RangeToken RangeForBlock(Bpl.Block block) {
+    // TODO: Can a block be empty?
+    Bpl.IToken bmin = block.cmds.MinBy(cmd => cmd.tok.line)?.tok;
+    Bpl.IToken bmax = block.cmds.MaxBy(cmd => cmd.tok.line)?.tok;
+    if (bmin == null || bmax == null) {
+      return null;
+    }
+    IToken min = TokenForBoogieToken(bmin);
+    IToken max = TokenForBoogieToken(bmax);
+    return new RangeToken(min, max);
+  }
+
+  private IToken TokenForBoogieToken(Bpl.IToken token) {
+    var result = new Token(token.line + 1, token.col + 1);
+    result.pos = token.pos;
+    return result;
   }
 
 }

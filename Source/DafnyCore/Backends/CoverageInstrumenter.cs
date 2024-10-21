@@ -113,6 +113,15 @@ public class CoverageInstrumenter {
             optionsWithoutVerify, optionsWithoutVerify.OutputWriter, engine, "", "", boogieProgram, "programId");
         }
       }
+
+      List<BlockRange> ranges = CalculateBlockRanges(boogiePrograms).ToList();
+      foreach (var left in ranges) {
+        foreach (var right in ranges) {
+          if (left != right && left.range.Intersects(right.range)) {
+            int bp = 42;
+          }
+        }
+      }
       
       var tallies = File.ReadLines(talliesFilePath).Select(int.Parse).ToArray();
       foreach (var ((token, _), tally) in legend.Zip(tallies)) {
@@ -125,13 +134,26 @@ public class CoverageInstrumenter {
     }
   }
 
+  private IEnumerable<BlockRange> CalculateBlockRanges(IEnumerable<Bpl.Program> boogiePrograms) {
+    foreach (var program in boogiePrograms) {
+      foreach (var implementation in program.Implementations) {
+        foreach (var block in implementation.Blocks) {
+          BlockRange blockRange = RangeForBlock(block);
+          if (blockRange != null) {
+            yield return blockRange;
+          }
+        }
+      }
+    }
+  }
+  
   private RangeToken FindBasicBlockRange(IEnumerable<Bpl.Program> boogiePrograms, IToken token) {
     foreach (var program in boogiePrograms) {
       foreach (var implementation in program.Implementations) {
         foreach (var block in implementation.Blocks) {
-          RangeToken blockRange = RangeForBlock(block);
-          if (blockRange != null && blockRange.Contains(token.pos)) {
-            return blockRange;
+          BlockRange blockRange = RangeForBlock(block);
+          if (blockRange != null && blockRange.range.Contains(token.pos)) {
+            return blockRange.range;
           }
         }
       }
@@ -140,19 +162,34 @@ public class CoverageInstrumenter {
     return null;
   }
 
-  private RangeToken RangeForBlock(Bpl.Block block) {
+  private record BlockRange(Bpl.Block block, RangeToken range, Bpl.Cmd minCmd, Bpl.Cmd maxCmd);
+
+  private BlockRange RangeForBlock(Bpl.Block block) {
     // TODO: Can a block be empty?
-    Bpl.IToken bmin = block.cmds.MinBy(cmd => cmd.tok.line)?.tok;
-    Bpl.IToken bmax = block.cmds.MaxBy(cmd => cmd.tok.line)?.tok;
-    if (bmin == null || bmax == null) {
+    Bpl.Cmd minCmd = block.cmds.Where(cmd => cmd is not Bpl.CommentCmd).MinBy(cmd => TokenForBlocking(cmd).line);
+    Bpl.Cmd maxCmd = block.cmds.Where(cmd => cmd is not Bpl.CommentCmd).MaxBy(cmd => TokenForBlocking(cmd).line);
+    if (minCmd == null || maxCmd == null) {
       return null;
     }
-    IToken min = TokenForBoogieToken(bmin);
-    IToken max = TokenForBoogieToken(bmax);
-    return new RangeToken(min, max);
+
+    IToken min = TokenForBoogieToken(TokenForBlocking(minCmd));
+    IToken max = TokenForBoogieToken(TokenForBlocking(maxCmd));
+    RangeToken range = new RangeToken(min, max);
+    return new BlockRange(block, range, minCmd, maxCmd);
+  }
+
+  private Bpl.IToken TokenForBlocking(Bpl.Cmd cmd) {
+    if (cmd is Bpl.AssignCmd assignCmd && assignCmd.Rhss[0].tok.filename != null) {
+      return assignCmd.Rhss[0].tok;
+    }
+
+    return cmd.tok;
   }
 
   private IToken TokenForBoogieToken(Bpl.IToken token) {
+    if (token.line == 0) {
+      int bp = 42;
+    }
     var result = new Token(token.line + 1, token.col + 1);
     result.pos = token.pos;
     return result;

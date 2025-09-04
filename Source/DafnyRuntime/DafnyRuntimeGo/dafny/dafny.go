@@ -528,32 +528,31 @@ func SeqCreate(n uint32, init func(Int) interface{}) Sequence {
 
 func SeqFromArray(contents []interface{}, isString bool) Sequence {
 	result := New_ArraySequence_()
-	underlying := &arrayStruct{contents: contents, dims: []int{len(contents)}}
+	underlying := newArrayWithValues(contents...)
 	result.Ctor__(GoNativeArray{underlying: underlying}, isString)
 	return result
 }
 
 // SeqOf returns a sequence containing the given values.
 func SeqOf(values ...interface{}) Sequence {
-	// Making a defensive copy here because variadic functions can get hinky
-	// if someone says SeqOf(slice...) and then mutates slice.
-	arr := make([]interface{}, len(values))
-	copy(arr, values)
-	return SeqFromArray(arr, false)
+	result := New_ArraySequence_()
+	underlying := newArrayWithValues(values...)
+	result.Ctor__(GoNativeArray{underlying: underlying}, false)
+	return result
 }
 
 // SeqOfChars returns a sequence containing the given character values.
 func SeqOfChars(values ...Char) Sequence {
 	result := New_ArraySequence_()
-	underlying := newArrayWithValues(values)
-	result.Ctor__(GoNativeArray{underlying: underlying}, true)
+	underlying := NewArrayFromCharArray(values)
+	result.Ctor__(GoNativeArray{underlying: underlying}, false)
 	return result
 }
 
 func SeqOfBytes(values []byte) Sequence {
 	result := New_ArraySequence_()
-	underlying := newArrayWithValues(values)
-	result.Ctor__(GoNativeArray{underlying: underlying}, true)
+	underlying := NewArrayFromByteArray(values)
+	result.Ctor__(GoNativeArray{underlying: underlying}, false)
 	return result
 }
 
@@ -850,6 +849,25 @@ func computeTotalArrayLength(dims ...Int) int {
 	totalLength := product.Int()
 	return totalLength
 }
+
+func NewArrayFromCharArray(values []Char) Array {
+	contents := make([]Char, len(values))
+	copy(contents, values)
+	return &arrayForChar{
+		contents: contents,
+		dims:     []int{len(values)},
+	}
+}
+
+func NewArrayFromByteArray(values []byte) Array {
+	contents := make([]byte, len(values))
+	copy(contents, values)
+	return &arrayForByte{
+		contents: contents,
+		dims:     []int{len(values)},
+	}
+}
+
 
 // NewArrayFromExample returns a new Array.
 // If "init" is non-nil, it is used to initialize all elements of the array.

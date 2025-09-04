@@ -68,7 +68,8 @@ func TestByteSequenceOptimization(t *testing.T) {
 func TestSeqOf(t *testing.T) {
 	// Test uint8 slice - should optimize
 	uint8Contents := []interface{}{uint8(1), uint8(2), uint8(3)}
-	seq := SeqOf(uint8Contents)
+	seq := SeqFromArray(uint8Contents, false)
+	AssertSequenceIsBackedByByteArray(seq, t)
 	if !SequenceIsBackedByByteArray(seq) {
 		t.Error("Expected optimization for uint8 slice")
 	}
@@ -81,14 +82,14 @@ func TestSeqOf(t *testing.T) {
 
 	// Test non-uint8 slice - should not optimize
 	intContents := []interface{}{1, 2, 3}
-	seq2 := SeqOf(intContents)
+	seq2 := SeqFromArray(intContents, false)
 	if SequenceIsBackedByByteArray(seq2) {
 		t.Error("Expected no optimization for int slice")
 	}
 
 	// Test empty slice - should not optimize
 	emptyContents := []interface{}{}
-	seq3 := SeqOf(emptyContents)
+	seq3 := SeqFromArray(emptyContents, false)
 	if SequenceIsBackedByByteArray(seq3) {
 		t.Error("Expected no optimization for empty slice")
 	}
@@ -135,7 +136,7 @@ func TestNativeArrayFunctions(t *testing.T) {
 
 	// Test Copy function with ByteNativeArray
 	data := []byte{10, 20, 30}
-	byteSeq := SeqOf(data)
+	byteSeq := SeqOfBytes(data)
 	byteArr := byteSeq.ToArray()
 	arr4 := Companion_NativeArray_.Copy(byteArr)
 	if byteArr4, ok := arr4.(GoNativeArray); ok {
@@ -158,6 +159,23 @@ func AssertImplementsSequence(s interface{}, t *testing.T) {
 }
 
 func SequenceIsBackedByByteArray(seq Sequence) bool {
-	_, ok := seq.(*ArraySequence)._values.(GoNativeArray).underlying.(arrayForByte)
+	_, ok := seq.(*ArraySequence)._values.(GoNativeArray).underlying.(*arrayForByte)
 	return ok
+}
+
+func AssertSequenceIsBackedByByteArray(seq Sequence, t *testing.T) {
+	as, ok := seq.(*ArraySequence)
+	if !ok {
+		t.Errorf("Expected %v to be an *ArraySequence", seq)
+	}
+
+	gna, ok := as._values.(GoNativeArray)
+	if !ok {
+		t.Errorf("Expected %v to implement the GoNativeArray interface", as._values)
+	}
+
+	_, ok = gna.underlying.(*arrayForByte)
+	if !ok {
+		t.Errorf("Expected %v to be an arrayForByte", gna.underlying)
+	}
 }
